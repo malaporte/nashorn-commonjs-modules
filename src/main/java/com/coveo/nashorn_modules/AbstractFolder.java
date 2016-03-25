@@ -12,8 +12,8 @@ public abstract class AbstractFolder implements Folder {
         return path;
     }
 
-    protected AbstractFolder(Folder parent, String name) {
+    protected AbstractFolder(Folder parent, String path) {
         this.parent = parent;
-        this.path = (parent != null ? parent.getPath() : "/") + name + "/";
+        this.path = path;
     }
 }
