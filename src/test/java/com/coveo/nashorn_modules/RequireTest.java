@@ -17,7 +17,6 @@ import jdk.nashorn.api.scripting.NashornScriptEngine;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
@@ -27,7 +26,11 @@ public class RequireTest {
     @Mock
     Folder root;
     @Mock
+    Folder rootnm;
+    @Mock
     Folder sub1;
+    @Mock
+    Folder sub1nm;
     @Mock
     Folder sub1sub1;
 
@@ -37,12 +40,20 @@ public class RequireTest {
     @Before
     public void before() throws Throwable {
         when(root.getPath()).thenReturn("/");
+        when(root.getFolder("node_modules")).thenReturn(rootnm);
         when(root.getFolder("sub1")).thenReturn(sub1);
         when(root.getFile("file1.js")).thenReturn("exports.file1 = 'file1';");
+        when(rootnm.getPath()).thenReturn("/node_modules/");
+        when(rootnm.getParent()).thenReturn(root);
+        when(rootnm.getFile("nmfile1.js")).thenReturn("exports.nmfile1 = 'nmfile1';");
         when(sub1.getPath()).thenReturn("/sub1/");
         when(sub1.getParent()).thenReturn(root);
         when(sub1.getFolder("sub1")).thenReturn(sub1sub1);
+        when(sub1.getFolder("node_modules")).thenReturn(sub1nm);
         when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = 'sub1file1';");
+        when(sub1nm.getPath()).thenReturn("/sub1/node_modules/");
+        when(sub1nm.getParent()).thenReturn(sub1);
+        when(sub1nm.getFile("sub1nmfile1.js")).thenReturn("exports.sub1nmfile1 = 'sub1nmfile1';");
         when(sub1sub1.getPath()).thenReturn("/sub1/sub1/");
         when(sub1sub1.getParent()).thenReturn(sub1);
         when(sub1sub1.getFile("sub1sub1file1.js")).thenReturn("exports.sub1sub1file1 = 'sub1sub1file1';");
@@ -52,18 +63,45 @@ public class RequireTest {
 
     @Test
     public void itCanLoadSimpleModules() throws Throwable {
-        assertEquals("file1", require.require("file1.js").get("file1"));
+        assertEquals("file1", require.require("./file1.js").get("file1"));
     }
 
     @Test
     public void itCanLoadModulesFromSubFolders() throws Throwable {
-        assertEquals("sub1file1", require.require("sub1/sub1file1.js").get("sub1file1"));
+        assertEquals("sub1file1", require.require("./sub1/sub1file1.js").get("sub1file1"));
+    }
+
+    @Test
+    public void itCanLoadModulesFromSubSubFolders() throws Throwable {
+        assertEquals("sub1sub1file1", require.require("./sub1/sub1/sub1sub1file1.js").get("sub1sub1file1"));
     }
 
     @Test
     public void itCanLoadModulesFromParentFolders() throws Throwable {
         when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
-        assertEquals("file1", require.require("sub1/sub1file1.js").get("sub1file1"));
+        assertEquals("file1", require.require("./sub1/sub1file1.js").get("sub1file1"));
+    }
+
+    @Test
+    public void itUsesNodeModulesForNonPrefixedNames() throws Throwable {
+        assertEquals("nmfile1", require.require("nmfile1").get("nmfile1"));
+    }
+
+    @Test(expected = NashornException.class)
+    public void itDoesNotUseModulesOutsideOfNodeModulesForNonPrefixedNames() throws Throwable {
+        require.require("file1.js");
+    }
+
+    @Test
+    public void itUsesNodeModulesFromSubFolderForSubRequiresFromModuleInSubFolder() throws Throwable {
+        when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1nmfile1 = require('sub1nmfile1').sub1nmfile1;");
+        assertEquals("sub1nmfile1", require.require("./sub1/sub1file1").get("sub1nmfile1"));
+    }
+
+    @Test
+    public void itLooksAtParentFoldersWhenTryingToResolveFromNodeModules() throws Throwable {
+        when(sub1.getFile("sub1file1.js")).thenReturn("exports.nmfile1 = require('nmfile1').nmfile1;");
+        assertEquals("nmfile1", require.require("./sub1/sub1file1").get("nmfile1"));
     }
 
     @Test
@@ -83,33 +121,28 @@ public class RequireTest {
     }
 
     @Test
-    public void itCanLoadModulesFromSubSubFolders() throws Throwable {
-        assertEquals("sub1sub1file1", require.require("sub1/sub1/sub1sub1file1.js").get("sub1sub1file1"));
-    }
-
-    @Test
     public void itCanLoadModuleIfTheExtensionIsOmitted() throws Throwable {
-        assertEquals("file1", require.require("file1").get("file1"));
+        assertEquals("file1", require.require("./file1").get("file1"));
     }
 
     @Test(expected = NashornException.class)
     public void itThrowsAnExceptionIfFileDoesNotExists() throws Throwable {
-        require.require("invalid");
+        require.require("./invalid");
     }
 
     @Test(expected = NashornException.class)
     public void itThrowsAnExceptionIfSubFileDoesNotExists() throws Throwable {
-        require.require("sub1/invalid");
+        require.require("./sub1/invalid");
     }
 
     @Test(expected = NashornException.class)
     public void itThrowsEnExceptionIfFolderDoesNotExists() throws Throwable {
-        require.require("invalid/file1.js");
+        require.require("./invalid/file1.js");
     }
 
     @Test(expected = NashornException.class)
     public void itThrowsEnExceptionIfSubFolderDoesNotExists() throws Throwable {
-        require.require("sub1/invalid/file1.js");
+        require.require("./sub1/invalid/file1.js");
     }
 
     @Test(expected = NashornException.class)
@@ -119,7 +152,7 @@ public class RequireTest {
 
     @Test
     public void theExceptionThrownForAnUnknownFileCanBeCaughtInJavaScriptAndHasTheProperCode() throws Throwable {
-        String code = (String) engine.eval("(function() { try { require('invalid'); } catch (ex) { return ex.code; } })();");
+        String code = (String) engine.eval("(function() { try { require('./invalid'); } catch (ex) { return ex.code; } })();");
         assertEquals("MODULE_NOT_FOUND", code);
     }
 
@@ -144,9 +177,9 @@ public class RequireTest {
         when(root.getFile("file1.js")).thenReturn("exports._module = module; exports._exports = exports; exports._main = require.main;");
 
         Bindings top = (Bindings) engine.eval("module");
-        Bindings module = (Bindings) engine.eval("require('file1')._module");
-        Bindings exports = (Bindings) engine.eval("require('file1')._exports");
-        Bindings main = (Bindings) engine.eval("require('file1')._main");
+        Bindings module = (Bindings) engine.eval("require('./file1')._module");
+        Bindings exports = (Bindings) engine.eval("require('./file1')._exports");
+        Bindings main = (Bindings) engine.eval("require('./file1')._main");
 
         assertEquals(exports, module.get("exports"));
         assertEquals(new ArrayList(), module.get("children"));
@@ -163,9 +196,9 @@ public class RequireTest {
         when(sub1.getFile("sub1file1.js")).thenReturn("exports._module = module; exports._exports = exports; exports._main = require.main;");
 
         Bindings top = (Bindings) engine.eval("module");
-        Bindings module = (Bindings) engine.eval("require('sub1/sub1file1')._module");
-        Bindings exports = (Bindings) engine.eval("require('sub1/sub1file1')._exports");
-        Bindings main = (Bindings) engine.eval("require('sub1/sub1file1')._main");
+        Bindings module = (Bindings) engine.eval("require('./sub1/sub1file1')._module");
+        Bindings exports = (Bindings) engine.eval("require('./sub1/sub1file1')._exports");
+        Bindings main = (Bindings) engine.eval("require('./sub1/sub1file1')._main");
 
         assertEquals(exports, module.get("exports"));
         assertEquals(new ArrayList(), module.get("children"));
@@ -182,9 +215,9 @@ public class RequireTest {
         when(sub1sub1.getFile("sub1sub1file1.js")).thenReturn("exports._module = module; exports._exports = exports; exports._main = require.main;");
 
         Bindings top = (Bindings) engine.eval("module");
-        Bindings module = (Bindings) engine.eval("require('sub1/sub1/sub1sub1file1')._module");
-        Bindings exports = (Bindings) engine.eval("require('sub1/sub1/sub1sub1file1')._exports");
-        Bindings main = (Bindings) engine.eval("require('sub1/sub1/sub1sub1file1')._main");
+        Bindings module = (Bindings) engine.eval("require('./sub1/sub1/sub1sub1file1')._module");
+        Bindings exports = (Bindings) engine.eval("require('./sub1/sub1/sub1sub1file1')._exports");
+        Bindings main = (Bindings) engine.eval("require('./sub1/sub1/sub1sub1file1')._main");
 
         assertEquals(exports, module.get("exports"));
         assertEquals(new ArrayList(), module.get("children"));
@@ -198,12 +231,12 @@ public class RequireTest {
 
     @Test
     public void requireInRequiredModuleYieldExpectedParentAndChildren() throws Throwable {
-        when(root.getFile("file1.js")).thenReturn("exports._module = module; exports.sub = require('sub1/sub1file1');");
+        when(root.getFile("file1.js")).thenReturn("exports._module = module; exports.sub = require('./sub1/sub1file1');");
         when(sub1.getFile("sub1file1.js")).thenReturn("exports._module = module;");
 
         Bindings top = (Bindings) engine.eval("module");
-        Bindings module = (Bindings) engine.eval("require('file1')._module");
-        Bindings subModule = (Bindings) engine.eval("require('file1').sub._module");
+        Bindings module = (Bindings) engine.eval("require('./file1')._module");
+        Bindings subModule = (Bindings) engine.eval("require('./file1').sub._module");
 
         assertEquals(null, top.get("parent"));
         assertEquals(top, module.get("parent"));
@@ -218,8 +251,8 @@ public class RequireTest {
         when(root.getFile("file1.js")).thenReturn("exports._module = module; exports._loaded = module.loaded;");
 
         Bindings top = (Bindings) engine.eval("module");
-        Bindings module = (Bindings) engine.eval("require('file1')._module");
-        boolean loaded = (boolean) engine.eval("require('file1')._loaded");
+        Bindings module = (Bindings) engine.eval("require('./file1')._module");
+        boolean loaded = (boolean) engine.eval("require('./file1')._loaded");
 
         assertTrue((boolean) top.get("loaded"));
         assertFalse(loaded);
@@ -228,24 +261,24 @@ public class RequireTest {
 
     @Test
     public void loadingTheSameModuleTwiceYieldsTheSameObject() throws Throwable {
-        Object first = engine.eval("require('file1');");
-        Object second = engine.eval("require('file1');");
+        Object first = engine.eval("require('./file1');");
+        Object second = engine.eval("require('./file1');");
         assertSame(first, second);
     }
 
     @Test
     public void loadingTheSameModuleFromASubModuleYieldsTheSameObject() throws Throwable {
-        when(root.getFile("file2.js")).thenReturn("exports.sub = require('file1');");
-        Object first = engine.eval("require('file1');");
-        Object second = engine.eval("require('file2').sub;");
+        when(root.getFile("file2.js")).thenReturn("exports.sub = require('./file1');");
+        Object first = engine.eval("require('./file1');");
+        Object second = engine.eval("require('./file2').sub;");
         assertSame(first, second);
     }
 
     @Test
     public void loadingTheSameModuleFromASubPathYieldsTheSameObject() throws Throwable {
         when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub = require('../file1');");
-        Object first = engine.eval("require('file1');");
-        Object second = engine.eval("require('sub1/sub1file1').sub;");
+        Object first = engine.eval("require('./file1');");
+        Object second = engine.eval("require('./sub1/sub1file1').sub;");
         assertSame(first, second);
     }
 }

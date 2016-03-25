@@ -1,7 +1,9 @@
 package com.coveo.nashorn_modules;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -20,7 +22,7 @@ public class Module extends SimpleBindings implements RequireFunction {
     private Module main;
     private Bindings module = new SimpleBindings();
     private Bindings exports = new SimpleBindings();
-    private List<Bindings> children = new ArrayList<Bindings>();
+    private List<Bindings> children = new ArrayList<>();
 
     public Module(NashornScriptEngine engine,
                   Folder folder,
@@ -71,20 +73,31 @@ public class Module extends SimpleBindings implements RequireFunction {
             throwModuleNotFoundException(module);
         }
 
-        Folder resolved = resolveFolder(parts);
-        if (resolved == null) {
-            throwModuleNotFoundException(module);
-        }
-
-        String filename = parts[parts.length - 1];
-        String[] namesToAttempt = new String[]{filename, filename + ".js", filename + ".json"};
+        String[] folders = Arrays.copyOfRange(parts, 0, parts.length - 1);
+        String[] filenames = getFilenamesToAttempt(parts[parts.length - 1]);
 
         Module found = null;
-        for (String name : namesToAttempt) {
-            found = loadModule(resolved, name);
-            if (found != null) {
-                break;
+        if (shouldLoadFromNodeModules(module)) {
+            // If the path doesn't already start with node_modules, add it.
+            if (folders.length == 0 || !folders[0].equals("node_modules")) {
+                folders = Stream.concat(Stream.of("node_modules"), Arrays.stream(folders)).toArray(String[]::new);
             }
+
+            // When loading from node_modules, we'll try to resolve first from
+            // the current folder and then we'll look at all our parents.
+            Folder current = folder;
+            while (current != null) {
+                found = attemptToLoadStartingFromFolder(current, folders, filenames);
+                if (found != null) {
+                    break;
+                } else {
+                    current = current.getParent();
+                }
+            }
+        } else {
+            // When not loading from node_modules we will not automatically
+            // look up the folder hierarchy, making the process quite simpler.
+            found = attemptToLoadStartingFromFolder(folder, folders, filenames);
         }
 
         if (found == null) {
@@ -96,13 +109,11 @@ public class Module extends SimpleBindings implements RequireFunction {
         return found.exports;
     }
 
-    private Folder resolveFolder(String[] parts) {
-        Folder current = folder;
-
-        for (int i = 0; i < parts.length - 1; ++i) {
-            String part = parts[i].trim();
-
-            switch (part) {
+    private Module attemptToLoadStartingFromFolder(Folder from, String[] folders, String[] filenames) throws ScriptException {
+        // First we navigate the folder parts to resolve the final one
+        Folder current = from;
+        for (String name : folders) {
+            switch (name) {
                 case "":
                     throw new IllegalArgumentException();
                 case ".":
@@ -111,16 +122,29 @@ public class Module extends SimpleBindings implements RequireFunction {
                     current = current.getParent();
                     break;
                 default:
-                    current = current.getFolder(part);
+                    current = current.getFolder(name);
                     break;
             }
 
+            // Whenever we get stuck we bail out
             if (current == null) {
-                break;
+                return null;
             }
         }
 
-        return current;
+        // Then we attempt to load from the folder we've found
+        return attemptToLoadFromThisFolder(current, filenames);
+    }
+
+    private Module attemptToLoadFromThisFolder(Folder from, String[] filenames) throws ScriptException {
+        for (String filename : filenames) {
+            Module found = loadModule(from, filename);
+            if (found != null) {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private Module loadModule(Folder parent, String name) throws ScriptException {
@@ -150,5 +174,13 @@ public class Module extends SimpleBindings implements RequireFunction {
         Bindings error = (Bindings) ctor.newObject("Module not found: " + module);
         error.put("code", "MODULE_NOT_FOUND");
         throw new ECMAException(error, null);
+    }
+
+    private static boolean shouldLoadFromNodeModules(String module) {
+        return !(module.startsWith("/") || module.startsWith("../") || module.startsWith("./"));
+    }
+
+    private static String[] getFilenamesToAttempt(String filename) {
+        return new String[]{filename, filename + ".js", filename + ".json"};
     }
 }
