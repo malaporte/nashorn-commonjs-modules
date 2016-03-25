@@ -13,8 +13,8 @@ Add this dependency to your `pom.xml` to reference the library:
 ```xml
 <dependency>
   <groupId>com.coveo</groupId>
-  <artifactId>nashorn-modules</artifactId>
-  <version>1.0.0</version>
+  <artifactId>nashorn-commonjs-modules</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 

@@ -13,6 +13,7 @@ import javax.script.SimpleBindings;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.runtime.ECMAException;
+import jdk.nashorn.internal.runtime.JSONFunctions;
 
 public class Module extends SimpleBindings implements RequireFunction {
   private NashornScriptEngine engine;
@@ -114,7 +115,27 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module attemptToLoadStartingFromFolder(Folder from, String[] folders, String[] filenames)
       throws ScriptException {
-    // First we navigate the folder parts to resolve the final one
+    Folder found = resolveFolder(from, folders);
+    if (found == null) {
+      return null;
+    }
+
+    return attemptToLoadFromThisFolder(found, filenames);
+  }
+
+  private Module attemptToLoadFromThisFolder(Folder from, String[] filenames)
+      throws ScriptException {
+    for (String filename : filenames) {
+      Module found = loadModule(from, filename);
+      if (found != null) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+
+  private Folder resolveFolder(Folder from, String[] folders) {
     Folder current = from;
     for (String name : folders) {
       switch (name) {
@@ -136,42 +157,70 @@ public class Module extends SimpleBindings implements RequireFunction {
       }
     }
 
-    // Then we attempt to load from the folder we've found
-    return attemptToLoadFromThisFolder(current, filenames);
-  }
-
-  private Module attemptToLoadFromThisFolder(Folder from, String[] filenames)
-      throws ScriptException {
-    for (String filename : filenames) {
-      Module found = loadModule(from, filename);
-      if (found != null) {
-        return found;
-      }
-    }
-
-    return null;
+    return current;
   }
 
   private Module loadModule(Folder parent, String name) throws ScriptException {
     String fullPath = parent.getPath() + name;
 
-    Module module = cache.get(fullPath);
+    Module found = cache.get(fullPath);
 
-    if (module == null) {
+    if (found == null) {
       String code = parent.getFile(name);
       if (code == null) {
-        return null;
+        // It is possible to refer to a module using only it's folder...
+        Folder fileAsFolder = parent.getFolder(name);
+        if (fileAsFolder == null) {
+          return null;
+        }
+
+        // Node supports resolving the main file for a module through package.json
+        String packageJson = fileAsFolder.getFile("package.json");
+        if (packageJson != null) {
+          String mainFile = getMainFileFromPackageJson(packageJson);
+          if (mainFile != null) {
+            String[] parts = Paths.splitPath(mainFile);
+            String[] folders = Arrays.copyOfRange(parts, 0, parts.length - 1);
+            String filename = parts[parts.length - 1];
+            Folder folder = resolveFolder(fileAsFolder, folders);
+            if (folder != null) {
+              code = folder.getFile(filename);
+            }
+          }
+        }
+
+        // It also has a fallback for index.js
+        if (code == null) {
+          code = fileAsFolder.getFile("index.js");
+        }
+
+        // If still nothing at this point, bail out
+        if (code == null) {
+          return null;
+        }
       }
 
-      Bindings moduleGlobal = new SimpleBindings();
-      module = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
-      engine.eval(code, moduleGlobal);
-      module.setLoaded();
-
-      cache.put(fullPath, module);
+      found = createModule(parent, fullPath, code);
+      cache.put(fullPath, found);
     }
 
-    return module;
+    return found;
+  }
+
+  private Module createModule(Folder parent, String fullPath, String code) throws ScriptException {
+    Bindings moduleGlobal = new SimpleBindings();
+    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
+    engine.eval(code, moduleGlobal);
+    created.setLoaded();
+
+    return created;
+  }
+
+  private String getMainFileFromPackageJson(String packageJson) throws ScriptException {
+    // Pretty lame way to parse JSON but hey...
+    ScriptObjectMirror json = (ScriptObjectMirror) engine.eval("JSON");
+    Bindings parsed = (Bindings) json.callMember("parse", packageJson);
+    return (String) parsed.get("main");
   }
 
   private void throwModuleNotFoundException(String module) throws ScriptException {

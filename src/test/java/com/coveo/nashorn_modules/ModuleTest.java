@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -53,6 +54,7 @@ public class ModuleTest {
     when(sub1sub1.getParent()).thenReturn(sub1);
     when(sub1sub1.getFile("sub1sub1file1.js"))
         .thenReturn("exports.sub1sub1file1 = 'sub1sub1file1';");
+
     engine = (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
     require = Module.registerMainRequire(engine, root);
   }
@@ -77,6 +79,43 @@ public class ModuleTest {
   public void itCanLoadModulesFromParentFolders() throws Throwable {
     when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
     assertEquals("file1", require.require("./sub1/sub1file1.js").get("sub1file1"));
+  }
+
+  @Test
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFile() throws Throwable {
+    Folder dir = mock(Folder.class);
+    when(dir.getFile("package.json")).thenReturn("{ \"main\": \"foo.js\" }");
+    when(dir.getFile("foo.js")).thenReturn("exports.foo = 'foo';");
+    when(root.getFolder("dir")).thenReturn(dir);
+    assertEquals("foo", require.require("./dir").get("foo"));
+  }
+
+  @Test
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToAFileInSubDirectory() throws Throwable {
+    Folder dir = mock(Folder.class);
+    Folder lib = mock(Folder.class);
+    when(dir.getFile("package.json")).thenReturn("{ \"main\": \"lib/foo.js\" }");
+    when(dir.getFolder("lib")).thenReturn(lib);
+    when(lib.getFile("foo.js")).thenReturn("exports.foo = 'foo';");
+    when(root.getFolder("dir")).thenReturn(dir);
+    assertEquals("foo", require.require("./dir").get("foo"));
+  }
+
+  @Test
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenIndexJsIsPresent() throws Throwable {
+    Folder dir = mock(Folder.class);
+    when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");
+    when(root.getFolder("dir")).thenReturn(dir);
+    assertEquals("foo", require.require("./dir").get("foo"));
+  }
+
+  @Test
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenIndexJsIsPresentEvenIfPackageJsonExists() throws Throwable {
+    Folder dir = mock(Folder.class);
+    when(dir.getFile("package.json")).thenReturn("{ }");
+    when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");
+    when(root.getFolder("dir")).thenReturn(dir);
+    assertEquals("foo", require.require("./dir").get("foo"));
   }
 
   @Test

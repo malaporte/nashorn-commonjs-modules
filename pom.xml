@@ -3,14 +3,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.coveo</groupId>
-  <artifactId>nashorn-modules</artifactId>
+  <artifactId>nashorn-commonjs-modules</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>${project.groupId}:${project.artifactId}</name>
 
   <description></description>
-  <url>http://github.com/coveo/nashorn-modules</url>
+  <url>http://github.com/coveo/nashorn-commonjs-modules</url>
 
   <licenses>
     <license>
@@ -28,9 +28,9 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git@github.com:coveo/nashorn-modules.git</connection>
-    <developerConnection>scm:git:git@github.com:coveo/nashorn-modules.git</developerConnection>
-    <url>http://github.com/coveo/nashorn-modules</url>
+    <connection>scm:git:git@github.com:coveo/nashorn-commonjs-modules.git</connection>
+    <developerConnection>scm:git:git@github.com:coveo/nashorn-commonjs-modules.git</developerConnection>
+    <url>http://github.com/coveo/nashorn-commonjs-modules</url>
   </scm>
 
   <distributionManagement>
