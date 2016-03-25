@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/coveo/nashorn-commonjs-modules.svg?branch=master)](https://travis-ci.org/coveo/nashorn-commonjs-modules)
+[![license](http://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/coveo/nashorn-commonjs-modules/blob/master/LICENSE)
+
 # CommonJS Modules Support for Nashorn
 
 This library adds support for CommonJS modules (aka `require`) inside a Nashorn script engine. It is based on the specification for [NodeJS modules](https://nodejs.org/api/modules.html) and it supports loading modules from the `node_modules` folder just as Node does. Of course, it doesn't provide an implementation for Node's APIs, so any module that depends on those won't work.
