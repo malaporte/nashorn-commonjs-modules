@@ -7,5 +7,5 @@ import jdk.nashorn.api.scripting.NashornException;
 
 @FunctionalInterface
 public interface RequireFunction {
-    public Bindings require(String module) throws ScriptException, NashornException;
+  public Bindings require(String module) throws ScriptException, NashornException;
 }
