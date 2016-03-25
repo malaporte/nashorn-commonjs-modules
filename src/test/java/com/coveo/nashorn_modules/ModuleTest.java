@@ -56,7 +56,7 @@ public class ModuleTest {
         .thenReturn("exports.sub1sub1file1 = 'sub1sub1file1';");
 
     engine = (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
-    require = Module.registerMainRequire(engine, root);
+    require = Require.enable(engine, root);
   }
 
   @Test
@@ -82,7 +82,8 @@ public class ModuleTest {
   }
 
   @Test
-  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFile() throws Throwable {
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFile()
+      throws Throwable {
     Folder dir = mock(Folder.class);
     when(dir.getFile("package.json")).thenReturn("{ \"main\": \"foo.js\" }");
     when(dir.getFile("foo.js")).thenReturn("exports.foo = 'foo';");
@@ -91,7 +92,9 @@ public class ModuleTest {
   }
 
   @Test
-  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToAFileInSubDirectory() throws Throwable {
+  public void
+      itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToAFileInSubDirectory()
+          throws Throwable {
     Folder dir = mock(Folder.class);
     Folder lib = mock(Folder.class);
     when(dir.getFile("package.json")).thenReturn("{ \"main\": \"lib/foo.js\" }");
@@ -110,7 +113,8 @@ public class ModuleTest {
   }
 
   @Test
-  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenIndexJsIsPresentEvenIfPackageJsonExists() throws Throwable {
+  public void itCanLoadModulesSpecifyingOnlyTheFolderWhenIndexJsIsPresentEvenIfPackageJsonExists()
+      throws Throwable {
     Folder dir = mock(Folder.class);
     when(dir.getFile("package.json")).thenReturn("{ }");
     when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");

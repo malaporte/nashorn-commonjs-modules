@@ -53,16 +53,8 @@ public class Module extends SimpleBindings implements RequireFunction {
     module.put("parent", parent != null ? parent.module : null);
   }
 
-  private void setLoaded() {
+  void setLoaded() {
     module.put("loaded", true);
-  }
-
-  public static Module registerMainRequire(NashornScriptEngine engine, Folder folder)
-      throws ScriptException {
-    Bindings global = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-    Module module = new Module(engine, folder, new ModuleCache(), "<main>", global, null, null);
-    module.setLoaded();
-    return module;
   }
 
   @Override

@@ -24,7 +24,7 @@ Enabling `require` in an existing Nashorn interpreter can be done very easily:
 
 ```java
 NashornScriptEngine engine = (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
-Module.registerMainRequire(engine, myRootFolder);
+Require.enable(engine, myRootFolder);
 ```
 
 This will expose a new global `require` function at the engine scope. Any code that is then run using this engine can make use of `require`.
@@ -39,7 +39,7 @@ Use the `FilesystemFolder.create` method to create an implementation of `Folder`
 
 ```java
 FilesystemFolder rootFolder = FilesystemFolder.create(new File("/path/to/my/folder"), "UTF-8");
-Module.registerMainRequire(engine, rootFolder);
+Require.enable(engine, rootFolder);
 ```
 
 You need to specify the encoding of the files. Most of the time UTF-8 will be a reasonable choice.
@@ -53,7 +53,7 @@ Use the `ResourceFolder.create` method to create an implementation of `Folder` b
 
 ```java
 ResourceFolder rootFolder = ResourceFolder.create(getClass().getClassLoader(), "com/coveo/nashorn_modules/test1", "UTF-8");
-Module.registerMainRequire(engine, rootFolder);
+Require.enable(engine, rootFolder);
 ```
 
 As for `FilesystemFolder`, you need to specify the encoding for the files that are read.

@@ -58,7 +58,7 @@ public class ResourceFolderTest {
   public void resourceFolderWorksWhenUsedForReal() throws Throwable {
     NashornScriptEngine engine =
         (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
-    Module.registerMainRequire(engine, root);
+    Require.enable(engine, root);
     assertEquals("spam", engine.eval("require('./foo').bar.spam.spam"));
   }
 }
