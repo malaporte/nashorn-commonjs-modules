@@ -6,14 +6,12 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import javax.script.Bindings;
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
 import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.runtime.ECMAException;
-import jdk.nashorn.internal.runtime.JSONFunctions;
 
 public class Module extends SimpleBindings implements RequireFunction {
   private NashornScriptEngine engine;
@@ -158,52 +156,84 @@ public class Module extends SimpleBindings implements RequireFunction {
     Module found = cache.get(fullPath);
 
     if (found == null) {
-      String code = parent.getFile(name);
-      if (code == null) {
-        // It is possible to refer to a module using only it's folder...
-        Folder fileAsFolder = parent.getFolder(name);
-        if (fileAsFolder == null) {
-          return null;
-        }
+      found = loadModuleDirectly(parent, fullPath, name);
+    }
 
-        // Node supports resolving the main file for a module through package.json
-        String packageJson = fileAsFolder.getFile("package.json");
-        if (packageJson != null) {
-          String mainFile = getMainFileFromPackageJson(packageJson);
-          if (mainFile != null) {
-            String[] parts = Paths.splitPath(mainFile);
-            String[] folders = Arrays.copyOfRange(parts, 0, parts.length - 1);
-            String filename = parts[parts.length - 1];
-            Folder folder = resolveFolder(fileAsFolder, folders);
-            if (folder != null) {
-              code = folder.getFile(filename);
-            }
-          }
-        }
-
-        // It also has a fallback for index.js
-        if (code == null) {
-          code = fileAsFolder.getFile("index.js");
-        }
-
-        // If still nothing at this point, bail out
-        if (code == null) {
-          return null;
-        }
-      }
-
-      found = createModule(parent, fullPath, code);
-      cache.put(fullPath, found);
+    if (found == null) {
+      found = loadModuleThroughFolderName(parent, fullPath, name);
     }
 
     return found;
   }
 
-  private Module createModule(Folder parent, String fullPath, String code) throws ScriptException {
+  private Module loadModuleDirectly(Folder parent, String fullPath, String name)
+      throws ScriptException {
+    String code = parent.getFile(name);
+    if (code == null) {
+      return null;
+    }
+
+    return compileModuleAndPutInCache(parent, fullPath, code);
+  }
+
+  private Module loadModuleThroughFolderName(Folder parent, String fullPath, String name)
+      throws ScriptException {
+    Folder fileAsFolder = parent.getFolder(name);
+    if (fileAsFolder == null) {
+      return null;
+    }
+
+    Module found = loadModuleThroughPackageJson(fileAsFolder, fullPath, name);
+
+    if (found == null) {
+      found = loadModuleThroughIndexJs(fileAsFolder, fullPath, name);
+    }
+
+    return found;
+  }
+
+  private Module loadModuleThroughPackageJson(Folder parent, String fullPath, String name)
+      throws ScriptException {
+    String packageJson = parent.getFile("package.json");
+    if (packageJson == null) {
+      return null;
+    }
+
+    String mainFile = getMainFileFromPackageJson(packageJson);
+    if (mainFile == null) {
+      return null;
+    }
+
+    String[] parts = Paths.splitPath(mainFile);
+    String[] folders = Arrays.copyOfRange(parts, 0, parts.length - 1);
+    String filename = parts[parts.length - 1];
+    Folder folder = resolveFolder(parent, folders);
+    if (folder == null) {
+      return null;
+    }
+
+    String code = folder.getFile(filename);
+    return compileModuleAndPutInCache(folder, fullPath, code);
+  }
+
+  private Module loadModuleThroughIndexJs(Folder parent, String fullPath, String name)
+      throws ScriptException {
+    String code = parent.getFile("index.js");
+    if (code == null) {
+      return null;
+    }
+
+    return compileModuleAndPutInCache(parent, fullPath, code);
+  }
+
+  private Module compileModuleAndPutInCache(Folder parent, String fullPath, String code)
+      throws ScriptException {
     Bindings moduleGlobal = new SimpleBindings();
     Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
     engine.eval(code, moduleGlobal);
     created.setLoaded();
+
+    cache.put(fullPath, created);
 
     return created;
   }

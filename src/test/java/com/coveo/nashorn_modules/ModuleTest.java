@@ -105,6 +105,20 @@ public class ModuleTest {
   }
 
   @Test
+  public void
+      itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToAFileInSubDirectoryReferencingOtherFilesInThisDirectory()
+          throws Throwable {
+    Folder dir = mock(Folder.class);
+    Folder lib = mock(Folder.class);
+    when(dir.getFile("package.json")).thenReturn("{ \"main\": \"lib/foo.js\" }");
+    when(dir.getFolder("lib")).thenReturn(lib);
+    when(lib.getFile("foo.js")).thenReturn("exports.bar = require('./bar');");
+    when(lib.getFile("bar.js")).thenReturn("exports.bar = 'bar';");
+    when(root.getFolder("dir")).thenReturn(dir);
+    assertEquals("bar", ((Bindings) require.require("./dir").get("bar")).get("bar"));
+  }
+
+  @Test
   public void itCanLoadModulesSpecifyingOnlyTheFolderWhenIndexJsIsPresent() throws Throwable {
     Folder dir = mock(Folder.class);
     when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");
