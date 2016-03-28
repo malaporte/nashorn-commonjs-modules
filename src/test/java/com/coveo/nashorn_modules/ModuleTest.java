@@ -39,6 +39,7 @@ public class ModuleTest {
     when(root.getFolder("node_modules")).thenReturn(rootnm);
     when(root.getFolder("sub1")).thenReturn(sub1);
     when(root.getFile("file1.js")).thenReturn("exports.file1 = 'file1';");
+    when(root.getFile("file2.json")).thenReturn("{ \"file2\": \"file2\" }");
     when(rootnm.getPath()).thenReturn("/node_modules/");
     when(rootnm.getParent()).thenReturn(root);
     when(rootnm.getFile("nmfile1.js")).thenReturn("exports.nmfile1 = 'nmfile1';");
@@ -62,6 +63,11 @@ public class ModuleTest {
   @Test
   public void itCanLoadSimpleModules() throws Throwable {
     assertEquals("file1", require.require("./file1.js").get("file1"));
+  }
+
+  @Test
+  public void itCanLoadSimpleJsonModules() throws Throwable {
+    assertEquals("file2", require.require("./file2.json").get("file2"));
   }
 
   @Test

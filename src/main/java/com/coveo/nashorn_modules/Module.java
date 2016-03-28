@@ -160,7 +160,14 @@ public class Module extends SimpleBindings implements RequireFunction {
     }
 
     if (found == null) {
-      found = loadModuleThroughFolderName(parent, fullPath, name);
+      found = loadModuleThroughFolderName(parent, name);
+    }
+
+    if (found != null) {
+      // We keep a cache entry for the requested path even though the code that
+      // compiles the module also adds it to the cache with the potentially different
+      // effective path. This avoids having to load package.json every time, etc.
+      cache.put(fullPath, found);
     }
 
     return found;
@@ -176,24 +183,22 @@ public class Module extends SimpleBindings implements RequireFunction {
     return compileModuleAndPutInCache(parent, fullPath, code);
   }
 
-  private Module loadModuleThroughFolderName(Folder parent, String fullPath, String name)
-      throws ScriptException {
+  private Module loadModuleThroughFolderName(Folder parent, String name) throws ScriptException {
     Folder fileAsFolder = parent.getFolder(name);
     if (fileAsFolder == null) {
       return null;
     }
 
-    Module found = loadModuleThroughPackageJson(fileAsFolder, fullPath, name);
+    Module found = loadModuleThroughPackageJson(fileAsFolder);
 
     if (found == null) {
-      found = loadModuleThroughIndexJs(fileAsFolder, fullPath, name);
+      found = loadModuleThroughIndexJs(fileAsFolder);
     }
 
     return found;
   }
 
-  private Module loadModuleThroughPackageJson(Folder parent, String fullPath, String name)
-      throws ScriptException {
+  private Module loadModuleThroughPackageJson(Folder parent) throws ScriptException {
     String packageJson = parent.getFile("package.json");
     if (packageJson == null) {
       return null;
@@ -213,36 +218,66 @@ public class Module extends SimpleBindings implements RequireFunction {
     }
 
     String code = folder.getFile(filename);
-    return compileModuleAndPutInCache(folder, fullPath, code);
+    return compileModuleAndPutInCache(folder, folder.getPath() + filename, code);
   }
 
-  private Module loadModuleThroughIndexJs(Folder parent, String fullPath, String name)
-      throws ScriptException {
+  private Module loadModuleThroughIndexJs(Folder parent) throws ScriptException {
     String code = parent.getFile("index.js");
     if (code == null) {
       return null;
     }
 
-    return compileModuleAndPutInCache(parent, fullPath, code);
+    return compileModuleAndPutInCache(parent, parent.getPath() + "index.js", code);
   }
 
   private Module compileModuleAndPutInCache(Folder parent, String fullPath, String code)
       throws ScriptException {
-    Bindings moduleGlobal = new SimpleBindings();
-    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
-    engine.eval(code, moduleGlobal);
-    created.setLoaded();
 
+    Module created;
+    String lowercaseFullPath = fullPath.toLowerCase();
+    if (lowercaseFullPath.endsWith(".js")) {
+      created = compileJavaScriptModule(parent, fullPath, code);
+    } else if (lowercaseFullPath.endsWith(".json")) {
+      created = compileJsonModule(parent, fullPath, code);
+    } else {
+      // Unsupported module type
+      return null;
+    }
+
+    // We keep a cache entry for the compiled module using it's effective path, to avoid
+    // recompiling even if module is requested through a different initial path.
     cache.put(fullPath, created);
 
     return created;
   }
 
+  private Module compileJavaScriptModule(Folder parent, String fullPath, String code)
+      throws ScriptException {
+    Bindings moduleGlobal = new SimpleBindings();
+    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
+    engine.eval(code, moduleGlobal);
+    created.setLoaded();
+    return created;
+  }
+
+  private Module compileJsonModule(Folder parent, String fullPath, String code)
+      throws ScriptException {
+    Bindings moduleGlobal = new SimpleBindings();
+    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
+    created.exports = parseJson(code);
+    created.setLoaded();
+    return created;
+  }
+
   private String getMainFileFromPackageJson(String packageJson) throws ScriptException {
-    // Pretty lame way to parse JSON but hey...
-    ScriptObjectMirror json = (ScriptObjectMirror) engine.eval("JSON");
-    Bindings parsed = (Bindings) json.callMember("parse", packageJson);
+    Bindings parsed = parseJson(packageJson);
     return (String) parsed.get("main");
+  }
+
+  private Bindings parseJson(String json) throws ScriptException {
+    // Pretty lame way to parse JSON but hey...
+    ScriptObjectMirror jsJson = (ScriptObjectMirror) engine.eval("JSON");
+    return (Bindings) jsJson.callMember("parse", json);
   }
 
   private void throwModuleNotFoundException(String module) throws ScriptException {
