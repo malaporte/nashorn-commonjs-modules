@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/coveo/nashorn-commonjs-modules.svg?branch=master)](https://travis-ci.org/coveo/nashorn-commonjs-modules)
-[![license](http://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/coveo/nashorn-commonjs-modules/blob/master/LICENSE)
+[![license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](https://github.com/coveo/nashorn-commonjs-modules/blob/master/LICENSE)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.coveo/nashorn-commonjs-modules/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.coveo/nashorn-commonjs-modules)
 
 # CommonJS Modules Support for Nashorn
 
