@@ -9,7 +9,7 @@
 
   <name>${project.groupId}:${project.artifactId}</name>
 
-  <description></description>
+  <description>CommonJS modules implementation for Nashorn</description>
   <url>http://github.com/coveo/nashorn-commonjs-modules</url>
 
   <licenses>
