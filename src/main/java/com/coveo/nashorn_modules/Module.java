@@ -256,6 +256,11 @@ public class Module extends SimpleBindings implements RequireFunction {
     Bindings moduleGlobal = new SimpleBindings();
     Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
     engine.eval(code, moduleGlobal);
+
+    // Scripts are free to replace the global exports symbol with their own, so we
+    // reload it from the module object after compiling the code.
+    created.exports = (Bindings) created.module.get("exports");
+
     created.setLoaded();
     return created;
   }

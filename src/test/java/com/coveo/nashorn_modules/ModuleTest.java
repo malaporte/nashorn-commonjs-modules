@@ -354,4 +354,10 @@ public class ModuleTest {
     Object second = engine.eval("require('./sub1/sub1file1').sub;");
     assertSame(first, second);
   }
+
+  @Test
+  public void scriptCodeCanReplaceTheModuleExportsSymbol() throws Throwable {
+    when(root.getFile("file1.js")).thenReturn("module.exports = { 'foo': 'bar' }");
+    assertEquals("bar", engine.eval("require('./file1').foo;"));
+  }
 }
