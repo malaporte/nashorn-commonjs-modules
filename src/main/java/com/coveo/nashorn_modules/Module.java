@@ -2,10 +2,12 @@ package com.coveo.nashorn_modules;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
 import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
@@ -253,7 +255,11 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module compileJavaScriptModule(Folder parent, String fullPath, String code)
       throws ScriptException {
-    Bindings moduleGlobal = new SimpleBindings();
+
+    // We take a copy of the current engine scope and include it in the module scope.
+    // Otherwise the eval'd code would run with a blank engine scope.
+    Bindings engineScope = engine.getBindings(ScriptContext.ENGINE_SCOPE);
+    Bindings moduleGlobal = new SimpleBindings(new HashMap<>(engineScope));
     Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
     engine.eval(code, moduleGlobal);
 

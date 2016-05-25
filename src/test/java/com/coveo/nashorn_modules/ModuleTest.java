@@ -360,4 +360,19 @@ public class ModuleTest {
     when(root.getFile("file1.js")).thenReturn("module.exports = { 'foo': 'bar' }");
     assertEquals("bar", engine.eval("require('./file1').foo;"));
   }
+
+  @Test
+  public void itIsPossibleToRegisterGlobalVariablesForAllModules() throws Throwable {
+    engine.put("bar", "bar");
+    when(root.getFile("file1.js")).thenReturn("exports.foo = function() { return bar; }");
+    assertEquals("bar", engine.eval("require('./file1').foo();"));
+  }
+
+  @Test
+  public void engineScopeVariablesAreVisibleDuringModuleLoad() throws Throwable {
+    engine.put("bar", "bar");
+    when(root.getFile("file1.js"))
+        .thenReturn("var found = bar == 'bar'; exports.foo = function() { return found; }");
+    assertEquals(true, engine.eval("require('./file1').foo();"));
+  }
 }
