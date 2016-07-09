@@ -32,7 +32,8 @@ public class Module extends SimpleBindings implements RequireFunction {
       String filename,
       Bindings global,
       Module parent,
-      Module main) throws ScriptException {
+      Module main)
+      throws ScriptException {
 
     this.engine = engine;
     this.folder = folder;
