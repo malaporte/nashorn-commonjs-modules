@@ -22,8 +22,8 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module main;
   private Bindings module = new SimpleBindings();
-  private Bindings exports = new SimpleBindings();
   private List<Bindings> children = new ArrayList<>();
+  private ScriptObjectMirror exports;
 
   public Module(
       NashornScriptEngine engine,
@@ -32,7 +32,7 @@ public class Module extends SimpleBindings implements RequireFunction {
       String filename,
       Bindings global,
       Module parent,
-      Module main) {
+      Module main) throws ScriptException {
 
     this.engine = engine;
     this.folder = folder;
@@ -40,8 +40,13 @@ public class Module extends SimpleBindings implements RequireFunction {
     this.main = main != null ? main : this;
     put("main", this.main.module);
 
-    global.put("require", this);
+    // This member will be return in JS code by the require function. We use this
+    // rather nasty trick to ensure that it'll be a plain JS object. Initially I
+    // used an instance of SimpleBindings, but there were conflicts when a module
+    // tried to define an exported function called 'get'.
+    exports = (ScriptObjectMirror) engine.eval("new Object()");
 
+    global.put("require", this);
     global.put("module", module);
     global.put("exports", exports);
 
@@ -265,7 +270,7 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     // Scripts are free to replace the global exports symbol with their own, so we
     // reload it from the module object after compiling the code.
-    created.exports = (Bindings) created.module.get("exports");
+    created.exports = (ScriptObjectMirror) created.module.get("exports");
 
     created.setLoaded();
     return created;
@@ -285,10 +290,10 @@ public class Module extends SimpleBindings implements RequireFunction {
     return (String) parsed.get("main");
   }
 
-  private Bindings parseJson(String json) throws ScriptException {
+  private ScriptObjectMirror parseJson(String json) throws ScriptException {
     // Pretty lame way to parse JSON but hey...
     ScriptObjectMirror jsJson = (ScriptObjectMirror) engine.eval("JSON");
-    return (Bindings) jsJson.callMember("parse", json);
+    return (ScriptObjectMirror) jsJson.callMember("parse", json);
   }
 
   private void throwModuleNotFoundException(String module) throws ScriptException {
