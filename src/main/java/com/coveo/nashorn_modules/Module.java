@@ -22,7 +22,7 @@ public class Module extends SimpleBindings implements RequireFunction {
   private Module main;
   private Bindings module;
   private List<Bindings> children = new ArrayList<>();
-  private ScriptObjectMirror exports;
+  private Object exports;
 
   public Module(
       NashornScriptEngine engine,
@@ -60,7 +60,7 @@ public class Module extends SimpleBindings implements RequireFunction {
   }
 
   @Override
-  public Bindings require(String module) throws ScriptException {
+  public Object require(String module) throws ScriptException {
     if (module == null) {
       throwModuleNotFoundException("<null>");
     }
@@ -268,7 +268,7 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     // Scripts are free to replace the global exports symbol with their own, so we
     // reload it from the module object after compiling the code.
-    created.exports = (ScriptObjectMirror) created.module.get("exports");
+    created.exports = created.module.get("exports");
 
     created.setLoaded();
     return created;

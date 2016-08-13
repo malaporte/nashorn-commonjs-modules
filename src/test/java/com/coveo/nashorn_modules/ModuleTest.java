@@ -62,29 +62,29 @@ public class ModuleTest {
 
   @Test
   public void itCanLoadSimpleModules() throws Throwable {
-    assertEquals("file1", require.require("./file1.js").get("file1"));
+    assertEquals("file1", ((Bindings) require.require("./file1.js")).get("file1"));
   }
 
   @Test
   public void itCanLoadSimpleJsonModules() throws Throwable {
-    assertEquals("file2", require.require("./file2.json").get("file2"));
+    assertEquals("file2", ((Bindings) require.require("./file2.json")).get("file2"));
   }
 
   @Test
   public void itCanLoadModulesFromSubFolders() throws Throwable {
-    assertEquals("sub1file1", require.require("./sub1/sub1file1.js").get("sub1file1"));
+    assertEquals("sub1file1", ((Bindings) require.require("./sub1/sub1file1.js")).get("sub1file1"));
   }
 
   @Test
   public void itCanLoadModulesFromSubSubFolders() throws Throwable {
     assertEquals(
-        "sub1sub1file1", require.require("./sub1/sub1/sub1sub1file1.js").get("sub1sub1file1"));
+        "sub1sub1file1", ((Bindings) require.require("./sub1/sub1/sub1sub1file1.js")).get("sub1sub1file1"));
   }
 
   @Test
   public void itCanLoadModulesFromParentFolders() throws Throwable {
     when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
-    assertEquals("file1", require.require("./sub1/sub1file1.js").get("sub1file1"));
+    assertEquals("file1", ((Bindings) require.require("./sub1/sub1file1.js")).get("sub1file1"));
   }
 
   @Test
@@ -94,7 +94,7 @@ public class ModuleTest {
     when(dir.getFile("package.json")).thenReturn("{ \"main\": \"foo.js\" }");
     when(dir.getFile("foo.js")).thenReturn("exports.foo = 'foo';");
     when(root.getFolder("dir")).thenReturn(dir);
-    assertEquals("foo", require.require("./dir").get("foo"));
+    assertEquals("foo", ((Bindings) require.require("./dir")).get("foo"));
   }
 
   @Test
@@ -107,7 +107,7 @@ public class ModuleTest {
     when(dir.getFolder("lib")).thenReturn(lib);
     when(lib.getFile("foo.js")).thenReturn("exports.foo = 'foo';");
     when(root.getFolder("dir")).thenReturn(dir);
-    assertEquals("foo", require.require("./dir").get("foo"));
+    assertEquals("foo", ((Bindings) require.require("./dir")).get("foo"));
   }
 
   @Test
@@ -121,7 +121,7 @@ public class ModuleTest {
     when(lib.getFile("foo.js")).thenReturn("exports.bar = require('./bar');");
     when(lib.getFile("bar.js")).thenReturn("exports.bar = 'bar';");
     when(root.getFolder("dir")).thenReturn(dir);
-    assertEquals("bar", ((Bindings) require.require("./dir").get("bar")).get("bar"));
+    assertEquals("bar", ((Bindings) ((Bindings) require.require("./dir")).get("bar")).get("bar"));
   }
 
   @Test
@@ -129,7 +129,7 @@ public class ModuleTest {
     Folder dir = mock(Folder.class);
     when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");
     when(root.getFolder("dir")).thenReturn(dir);
-    assertEquals("foo", require.require("./dir").get("foo"));
+    assertEquals("foo", ((Bindings) require.require("./dir")).get("foo"));
   }
 
   @Test
@@ -139,12 +139,12 @@ public class ModuleTest {
     when(dir.getFile("package.json")).thenReturn("{ }");
     when(dir.getFile("index.js")).thenReturn("exports.foo = 'foo';");
     when(root.getFolder("dir")).thenReturn(dir);
-    assertEquals("foo", require.require("./dir").get("foo"));
+    assertEquals("foo", ((Bindings) require.require("./dir")).get("foo"));
   }
 
   @Test
   public void itUsesNodeModulesForNonPrefixedNames() throws Throwable {
-    assertEquals("nmfile1", require.require("nmfile1").get("nmfile1"));
+    assertEquals("nmfile1", ((Bindings) require.require("nmfile1")).get("nmfile1"));
   }
 
   @Test(expected = NashornException.class)
@@ -156,34 +156,34 @@ public class ModuleTest {
   public void itUsesNodeModulesFromSubFolderForSubRequiresFromModuleInSubFolder() throws Throwable {
     when(sub1.getFile("sub1file1.js"))
         .thenReturn("exports.sub1nmfile1 = require('sub1nmfile1').sub1nmfile1;");
-    assertEquals("sub1nmfile1", require.require("./sub1/sub1file1").get("sub1nmfile1"));
+    assertEquals("sub1nmfile1", ((Bindings) require.require("./sub1/sub1file1")).get("sub1nmfile1"));
   }
 
   @Test
   public void itLooksAtParentFoldersWhenTryingToResolveFromNodeModules() throws Throwable {
     when(sub1.getFile("sub1file1.js")).thenReturn("exports.nmfile1 = require('nmfile1').nmfile1;");
-    assertEquals("nmfile1", require.require("./sub1/sub1file1").get("nmfile1"));
+    assertEquals("nmfile1", ((Bindings) require.require("./sub1/sub1file1")).get("nmfile1"));
   }
 
   @Test
   public void itCanUseDotToReferenceToTheCurrentFolder() throws Throwable {
-    assertEquals("file1", require.require("./file1.js").get("file1"));
+    assertEquals("file1", ((Bindings) require.require("./file1.js")).get("file1"));
   }
 
   @Test
   public void itCanUseDotAndDoubleDotsToGoBackAndForward() throws Throwable {
-    assertEquals("file1", require.require("./sub1/.././sub1/../file1.js").get("file1"));
+    assertEquals("file1", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("file1"));
   }
 
   @Test
   public void thePathOfModulesContainsNoDots() throws Throwable {
     when(root.getFile("file1.js")).thenReturn("exports.path = module.filename");
-    assertEquals("/file1.js", require.require("./sub1/.././sub1/../file1.js").get("path"));
+    assertEquals("/file1.js", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("path"));
   }
 
   @Test
   public void itCanLoadModuleIfTheExtensionIsOmitted() throws Throwable {
-    assertEquals("file1", require.require("./file1").get("file1"));
+    assertEquals("file1", ((Bindings) require.require("./file1")).get("file1"));
   }
 
   @Test(expected = NashornException.class)
@@ -392,5 +392,19 @@ public class ModuleTest {
     when(root.getFile("file1.js")).thenReturn("exports.get = function(foo) { return 'bar'; };");
 
     assertEquals("bar", engine.eval("require('./file1.js').get(123, 456)"));
+  }
+
+  // Check for https://github.com/coveo/nashorn-commonjs-modules/issues/4
+  @Test
+  public void itSupportOverwritingExportsWithAString() throws Throwable {
+    when(root.getFile("file1.js")).thenReturn("module.exports = 'foo';");
+    assertEquals("foo", engine.eval("require('./file1.js')"));
+  }
+
+  // Check for https://github.com/coveo/nashorn-commonjs-modules/issues/4
+  @Test
+  public void itSupportOverwritingExportsWithAnInteger() throws Throwable {
+    when(root.getFile("file1.js")).thenReturn("module.exports = 123;");
+    assertEquals(123, engine.eval("require('./file1.js')"));
   }
 }
