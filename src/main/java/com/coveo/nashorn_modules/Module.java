@@ -2,7 +2,6 @@ package com.coveo.nashorn_modules;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -21,7 +20,7 @@ public class Module extends SimpleBindings implements RequireFunction {
   private ModuleCache cache;
 
   private Module main;
-  private Bindings module = new SimpleBindings();
+  private Bindings module;
   private List<Bindings> children = new ArrayList<>();
   private ScriptObjectMirror exports;
 
@@ -39,13 +38,10 @@ public class Module extends SimpleBindings implements RequireFunction {
     this.folder = folder;
     this.cache = cache;
     this.main = main != null ? main : this;
+    module = engine.createBindings();
     put("main", this.main.module);
 
-    // This member will be return in JS code by the require function. We use this
-    // rather nasty trick to ensure that it'll be a plain JS object. Initially I
-    // used an instance of SimpleBindings, but there were conflicts when a module
-    // tried to define an exported function called 'get'.
-    exports = (ScriptObjectMirror) engine.eval("new Object()");
+    exports = (ScriptObjectMirror) engine.createBindings();
 
     global.put("require", this);
     global.put("module", module);
@@ -265,7 +261,8 @@ public class Module extends SimpleBindings implements RequireFunction {
     // We take a copy of the current engine scope and include it in the module scope.
     // Otherwise the eval'd code would run with a blank engine scope.
     Bindings engineScope = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-    Bindings moduleGlobal = new SimpleBindings(new HashMap<>(engineScope));
+    Bindings moduleGlobal = engine.createBindings();
+    moduleGlobal.putAll(engineScope);
     Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
     engine.eval(code, moduleGlobal);
 
@@ -279,7 +276,7 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module compileJsonModule(Folder parent, String fullPath, String code)
       throws ScriptException {
-    Bindings moduleGlobal = new SimpleBindings();
+    Bindings moduleGlobal = engine.createBindings();
     Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
     created.exports = parseJson(code);
     created.setLoaded();

@@ -386,6 +386,7 @@ public class ModuleTest {
     assertEquals("bar", engine.eval("require('./file1.js').sub.sub.foo"));
   }
 
+  // Check for https://github.com/coveo/nashorn-commonjs-modules/issues/2
   @Test
   public void itCanCallFunctionsNamedGetFromModules() throws Throwable {
     when(root.getFile("file1.js")).thenReturn("exports.get = function(foo) { return 'bar'; };");
