@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import javax.script.Bindings;
-import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
@@ -29,7 +28,8 @@ public class Module extends SimpleBindings implements RequireFunction {
       Folder folder,
       ModuleCache cache,
       String filename,
-      Bindings global,
+      Bindings module,
+      Bindings exports,
       Module parent,
       Module main)
       throws ScriptException {
@@ -38,14 +38,11 @@ public class Module extends SimpleBindings implements RequireFunction {
     this.folder = folder;
     this.cache = cache;
     this.main = main != null ? main : this;
-    module = engine.createBindings();
+    this.module = module;
+    this.exports = exports;
+
     put("main", this.main.module);
 
-    exports = (ScriptObjectMirror) engine.createBindings();
-
-    global.put("require", this);
-    global.put("module", module);
-    global.put("exports", exports);
 
     module.put("exports", exports);
     module.put("children", children);
@@ -258,13 +255,18 @@ public class Module extends SimpleBindings implements RequireFunction {
   private Module compileJavaScriptModule(Folder parent, String fullPath, String code)
       throws ScriptException {
 
-    // We take a copy of the current engine scope and include it in the module scope.
-    // Otherwise the eval'd code would run with a blank engine scope.
-    Bindings engineScope = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-    Bindings moduleGlobal = engine.createBindings();
-    moduleGlobal.putAll(engineScope);
-    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
-    engine.eval(code, moduleGlobal);
+    Bindings module = engine.createBindings();
+    Bindings exports = engine.createBindings();
+    Module created = new Module(engine, parent, cache, fullPath, module, exports, this, this.main);
+
+    String[] split = Paths.splitPath(fullPath);
+    String filename = split[split.length - 1];
+    String dirname = fullPath.substring(0, Math.max(fullPath.length() - filename.length() - 1, 0));
+
+    // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
+    // to eval to override global context, but it caused problems Object.create.
+    ScriptObjectMirror function = (ScriptObjectMirror) engine.eval("(function (exports, require, module, __filename, __dirname) {" + code + "})");
+    function.call(created, created.exports, created, created.module, filename, dirname);
 
     // Scripts are free to replace the global exports symbol with their own, so we
     // reload it from the module object after compiling the code.
@@ -276,8 +278,9 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module compileJsonModule(Folder parent, String fullPath, String code)
       throws ScriptException {
-    Bindings moduleGlobal = engine.createBindings();
-    Module created = new Module(engine, parent, cache, fullPath, moduleGlobal, this, this.main);
+    Bindings module = engine.createBindings();
+    Bindings exports = engine.createBindings();
+    Module created = new Module(engine, parent, cache, fullPath, module, exports, this, this.main);
     created.exports = parseJson(code);
     created.setLoaded();
     return created;
