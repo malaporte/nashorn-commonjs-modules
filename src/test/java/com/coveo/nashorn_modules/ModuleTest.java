@@ -1,11 +1,13 @@
 package com.coveo.nashorn_modules;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.io.File;
 import java.util.ArrayList;
 
 import javax.script.Bindings;
@@ -143,8 +145,13 @@ public class ModuleTest {
   }
 
   @Test
-  public void itUsesNodeModulesForNonPrefixedNames() throws Throwable {
+  public void itUsesNodeModulesOnlyForNonPrefixedNames() throws Throwable {
     assertEquals("nmfile1", ((Bindings) require.require("nmfile1")).get("nmfile1"));
+  }
+
+  @Test
+  public void itFallbacksToNodeModulesWhenUsingPrefixedName() throws Throwable {
+    assertEquals("nmfile1", ((Bindings) require.require("./nmfile1")).get("nmfile1"));
   }
 
   @Test(expected = NashornException.class)
@@ -406,5 +413,15 @@ public class ModuleTest {
   public void itSupportOverwritingExportsWithAnInteger() throws Throwable {
     when(root.getFile("file1.js")).thenReturn("module.exports = 123;");
     assertEquals(123, engine.eval("require('./file1.js')"));
+  }
+
+  // Check for https://github.com/coveo/nashorn-commonjs-modules/issues/5
+  @Test
+  @Ignore
+  public void itCanLoadMermaidLibraryFromNpm() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test3");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('mermaid')");
   }
 }

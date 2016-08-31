@@ -3,7 +3,6 @@ package com.coveo.nashorn_modules;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -41,7 +40,7 @@ public class Module extends SimpleBindings implements RequireFunction {
     module = engine.createBindings();
     put("main", this.main.module);
 
-    exports = (ScriptObjectMirror) engine.createBindings();
+    exports = engine.createBindings();
 
     global.put("require", this);
     global.put("module", module);
@@ -70,32 +69,33 @@ public class Module extends SimpleBindings implements RequireFunction {
       throwModuleNotFoundException(module);
     }
 
-    String[] folders = Arrays.copyOfRange(parts, 0, parts.length - 1);
+    Folder resolvedFolder = resolveFolder(folder, Arrays.copyOfRange(parts, 0, parts.length - 1));
+    if (resolvedFolder == null) {
+      throwModuleNotFoundException(module);
+    }
+
     String[] filenames = getFilenamesToAttempt(parts[parts.length - 1]);
 
     Module found = null;
-    if (shouldLoadFromNodeModules(module)) {
-      // If the path doesn't already start with node_modules, add it.
-      if (folders.length == 0 || !folders[0].equals("node_modules")) {
-        folders =
-            Stream.concat(Stream.of("node_modules"), Arrays.stream(folders)).toArray(String[]::new);
-      }
 
-      // When loading from node_modules, we'll try to resolve first from
-      // the current folder and then we'll look at all our parents.
-      Folder current = folder;
-      while (current != null) {
-        found = attemptToLoadStartingFromFolder(current, folders, filenames);
-        if (found != null) {
-          break;
-        } else {
-          current = current.getParent();
+    // First we try to resolve the module from the resolved folder, ignoring node_modules
+    if (isPrefixedModuleName(module)) {
+      found = attemptToLoadFromThisFolder(resolvedFolder, filenames);
+    }
+
+    // Then, if not successful, we'll look at node_modules in the resolved folder and then
+    // in all parent folders until we reach the top.
+    if (found == null) {
+      Folder current = resolvedFolder;
+      while (found == null && current != null) {
+        Folder nodeModules = current.getFolder("node_modules");
+
+        if (nodeModules != null) {
+          found = attemptToLoadFromThisFolder(nodeModules, filenames);
         }
+
+        current = current.getParent();
       }
-    } else {
-      // When not loading from node_modules we will not automatically
-      // look up the folder hierarchy, making the process quite simpler.
-      found = attemptToLoadStartingFromFolder(folder, folders, filenames);
     }
 
     if (found == null) {
@@ -105,16 +105,6 @@ public class Module extends SimpleBindings implements RequireFunction {
     children.add(found.module);
 
     return found.exports;
-  }
-
-  private Module attemptToLoadStartingFromFolder(Folder from, String[] folders, String[] filenames)
-      throws ScriptException {
-    Folder found = resolveFolder(from, folders);
-    if (found == null) {
-      return null;
-    }
-
-    return attemptToLoadFromThisFolder(found, filenames);
   }
 
   private Module attemptToLoadFromThisFolder(Folder from, String[] filenames)
@@ -301,8 +291,8 @@ public class Module extends SimpleBindings implements RequireFunction {
     throw new ECMAException(error, null);
   }
 
-  private static boolean shouldLoadFromNodeModules(String module) {
-    return !(module.startsWith("/") || module.startsWith("../") || module.startsWith("./"));
+  private static boolean isPrefixedModuleName(String module) {
+    return module.startsWith("/") || module.startsWith("../") || module.startsWith("./");
   }
 
   private static String[] getFilenamesToAttempt(String filename) {
