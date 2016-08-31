@@ -74,28 +74,19 @@ public class Module extends SimpleBindings implements RequireFunction {
       throwModuleNotFoundException(module);
     }
 
-    String[] filenames = getFilenamesToAttempt(parts[parts.length - 1]);
+    String filename = parts[parts.length - 1];
 
     Module found = null;
 
     // First we try to resolve the module from the resolved folder, ignoring node_modules
     if (isPrefixedModuleName(module)) {
-      found = attemptToLoadFromThisFolder(resolvedFolder, filenames);
+      found = attemptToLoadFromThisFolder(resolvedFolder, filename);
     }
 
     // Then, if not successful, we'll look at node_modules in the resolved folder and then
     // in all parent folders until we reach the top.
     if (found == null) {
-      Folder current = resolvedFolder;
-      while (found == null && current != null) {
-        Folder nodeModules = current.getFolder("node_modules");
-
-        if (nodeModules != null) {
-          found = attemptToLoadFromThisFolder(nodeModules, filenames);
-        }
-
-        current = current.getParent();
-      }
+      found = searchForModuleInNodeModules(resolvedFolder, filename);
     }
 
     if (found == null) {
@@ -107,77 +98,68 @@ public class Module extends SimpleBindings implements RequireFunction {
     return found.exports;
   }
 
-  private Module attemptToLoadFromThisFolder(Folder from, String[] filenames)
-      throws ScriptException {
-    for (String filename : filenames) {
-      Module found = loadModule(from, filename);
-      if (found != null) {
-        return found;
+  private Module searchForModuleInNodeModules(Folder from, String filename) throws ScriptException {
+    Folder current = from;
+    while (current != null) {
+      Folder nodeModules = current.getFolder("node_modules");
+
+      if (nodeModules != null) {
+        Module found = attemptToLoadFromThisFolder(nodeModules, filename);
+        if (found != null) {
+          return found;
+        }
       }
+
+      current = current.getParent();
     }
 
     return null;
   }
 
-  private Folder resolveFolder(Folder from, String[] folders) {
-    Folder current = from;
-    for (String name : folders) {
-      switch (name) {
-        case "":
-          throw new IllegalArgumentException();
-        case ".":
-          continue;
-        case "..":
-          current = current.getParent();
-          break;
-        default:
-          current = current.getFolder(name);
-          break;
-      }
+  private Module attemptToLoadFromThisFolder(Folder from, String filename)
+      throws ScriptException {
 
-      // Whenever we get stuck we bail out
-      if (current == null) {
-        return null;
-      }
+    String requestedFullPath = from.getPath() + filename;
+    Module found = cache.get(requestedFullPath);
+    if (found != null) {
+      return found;
     }
 
-    return current;
-  }
+    // First we try to load as a file, trying out various variations on the path
+    found = loadModuleAsFile(from, filename);
 
-  private Module loadModule(Folder parent, String name) throws ScriptException {
-    String fullPath = parent.getPath() + name;
-
-    Module found = cache.get(fullPath);
-
+    // Then we try to load as a directory
     if (found == null) {
-      found = loadModuleDirectly(parent, fullPath, name);
-    }
-
-    if (found == null) {
-      found = loadModuleThroughFolderName(parent, name);
+      found = loadModuleAsFolder(from, filename);
     }
 
     if (found != null) {
       // We keep a cache entry for the requested path even though the code that
       // compiles the module also adds it to the cache with the potentially different
       // effective path. This avoids having to load package.json every time, etc.
-      cache.put(fullPath, found);
+      cache.put(requestedFullPath, found);
     }
 
     return found;
   }
 
-  private Module loadModuleDirectly(Folder parent, String fullPath, String name)
-      throws ScriptException {
-    String code = parent.getFile(name);
-    if (code == null) {
-      return null;
+  private Module loadModuleAsFile(Folder parent, String filename)
+          throws ScriptException {
+
+    String[] filenamesToAttempt = getFilenamesToAttempt(filename);
+    for (String tentativeFilename : filenamesToAttempt) {
+
+      String code = parent.getFile(tentativeFilename);
+      if (code != null) {
+        String fullPath = parent.getPath() + tentativeFilename;
+        return compileModuleAndPutInCache(parent, fullPath, code);
+      }
     }
 
-    return compileModuleAndPutInCache(parent, fullPath, code);
+    return null;
   }
 
-  private Module loadModuleThroughFolderName(Folder parent, String name) throws ScriptException {
+  private Module loadModuleAsFolder(Folder parent, String name) throws ScriptException {
     Folder fileAsFolder = parent.getFolder(name);
     if (fileAsFolder == null) {
       return null;
@@ -187,6 +169,10 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     if (found == null) {
       found = loadModuleThroughIndexJs(fileAsFolder);
+    }
+
+    if (found == null) {
+      found = loadModuleThroughIndexJson(fileAsFolder);
     }
 
     return found;
@@ -211,8 +197,12 @@ public class Module extends SimpleBindings implements RequireFunction {
       return null;
     }
 
-    String code = folder.getFile(filename);
-    return compileModuleAndPutInCache(folder, folder.getPath() + filename, code);
+    return loadModuleAsFile(folder, filename);
+  }
+
+  private String getMainFileFromPackageJson(String packageJson) throws ScriptException {
+    Bindings parsed = parseJson(packageJson);
+    return (String) parsed.get("main");
   }
 
   private Module loadModuleThroughIndexJs(Folder parent) throws ScriptException {
@@ -222,6 +212,15 @@ public class Module extends SimpleBindings implements RequireFunction {
     }
 
     return compileModuleAndPutInCache(parent, parent.getPath() + "index.js", code);
+  }
+
+  private Module loadModuleThroughIndexJson(Folder parent) throws ScriptException {
+    String code = parent.getFile("index.json");
+    if (code == null) {
+      return null;
+    }
+
+    return compileModuleAndPutInCache(parent, parent.getPath() + "index.json", code);
   }
 
   private Module compileModuleAndPutInCache(Folder parent, String fullPath, String code)
@@ -273,11 +272,6 @@ public class Module extends SimpleBindings implements RequireFunction {
     return created;
   }
 
-  private String getMainFileFromPackageJson(String packageJson) throws ScriptException {
-    Bindings parsed = parseJson(packageJson);
-    return (String) parsed.get("main");
-  }
-
   private ScriptObjectMirror parseJson(String json) throws ScriptException {
     // Pretty lame way to parse JSON but hey...
     ScriptObjectMirror jsJson = (ScriptObjectMirror) engine.eval("JSON");
@@ -289,6 +283,31 @@ public class Module extends SimpleBindings implements RequireFunction {
     Bindings error = (Bindings) ctor.newObject("Module not found: " + module);
     error.put("code", "MODULE_NOT_FOUND");
     throw new ECMAException(error, null);
+  }
+
+  private Folder resolveFolder(Folder from, String[] folders) {
+    Folder current = from;
+    for (String name : folders) {
+      switch (name) {
+        case "":
+          throw new IllegalArgumentException();
+        case ".":
+          continue;
+        case "..":
+          current = current.getParent();
+          break;
+        default:
+          current = current.getFolder(name);
+          break;
+      }
+
+      // Whenever we get stuck we bail out
+      if (current == null) {
+        return null;
+      }
+    }
+
+    return current;
   }
 
   private static boolean isPrefixedModuleName(String module) {
