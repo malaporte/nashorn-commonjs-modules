@@ -6,6 +6,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.io.File;
 import java.util.ArrayList;
 
 import javax.script.Bindings;
@@ -246,7 +247,7 @@ public class ModuleTest {
   public void topLevelModulesExposeTheExpectedFields() throws Throwable {
     when(root.getFile("file1.js"))
         .thenReturn(
-            "exports._module = module; exports._exports = exports; exports._main = require.main;");
+            "exports._module = module; exports._exports = exports; exports._main = require.main; exports._filename = __filename; exports._dirname = __dirname;");
 
     Bindings top = (Bindings) engine.eval("module");
     Bindings module = (Bindings) engine.eval("require('./file1')._module");
@@ -261,13 +262,16 @@ public class ModuleTest {
     assertEquals(top, module.get("parent"));
     assertNotNull(exports);
     assertEquals(top, main);
+
+    assertEquals("file1.js", exports.get("_filename"));
+    assertEquals("", exports.get("_dirname"));
   }
 
   @Test
   public void subModulesExposeTheExpectedFields() throws Throwable {
     when(sub1.getFile("sub1file1.js"))
         .thenReturn(
-            "exports._module = module; exports._exports = exports; exports._main = require.main;");
+            "exports._module = module; exports._exports = exports; exports._main = require.main; exports._filename = __filename; exports._dirname = __dirname");
 
     Bindings top = (Bindings) engine.eval("module");
     Bindings module = (Bindings) engine.eval("require('./sub1/sub1file1')._module");
@@ -282,6 +286,9 @@ public class ModuleTest {
     assertEquals(top, module.get("parent"));
     assertNotNull(exports);
     assertEquals(top, main);
+
+    assertEquals("sub1file1.js", exports.get("_filename"));
+    assertEquals("/sub1", exports.get("_dirname"));
   }
 
   @Test
@@ -397,6 +404,26 @@ public class ModuleTest {
     when(root.getFile("file1.js")).thenReturn("exports.get = function(foo) { return 'bar'; };");
 
     assertEquals("bar", engine.eval("require('./file1.js').get(123, 456)"));
+  }
+
+  // Checks for https://github.com/coveo/nashorn-commonjs-modules/issues/3
+
+  // This one only failed on older JREs
+  @Test
+  public void itCanUseHighlightJsLibraryFromNpm() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test2");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('highlight.js').highlight('java', '\"foo\"')");
+  }
+
+  // This one failed on more recent ones too
+  @Test
+  public void anotherCheckForIssueNumber3() throws Throwable {
+    when(root.getFile("file1.js")).thenReturn("var a = require('./file2'); function b() {}; b.prototype = Object.create(a.prototype, {});");
+    when(root.getFile("file2.js")).thenReturn("module.exports = a; function a() {}; a.prototype = Object.create(Object.prototype, {})");
+    require = Require.enable(engine, root);
+    engine.eval("require('./file1');");
   }
 
   // Check for https://github.com/coveo/nashorn-commonjs-modules/issues/4
