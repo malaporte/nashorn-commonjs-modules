@@ -10,7 +10,8 @@ public class Require {
   public static Module enable(NashornScriptEngine engine, Folder folder) throws ScriptException {
     Bindings module = engine.createBindings();
     Bindings exports = engine.createBindings();
-    Module created = new Module(engine, folder, new ModuleCache(), "<main>", module, exports, null, null);
+    Module created =
+        new Module(engine, folder, new ModuleCache(), "<main>", module, exports, null, null);
     created.setLoaded();
 
     Bindings global = engine.getBindings(ScriptContext.ENGINE_SCOPE);

@@ -112,8 +112,7 @@ public class Module extends SimpleBindings implements RequireFunction {
     return null;
   }
 
-  private Module attemptToLoadFromThisFolder(Folder from, String filename)
-      throws ScriptException {
+  private Module attemptToLoadFromThisFolder(Folder from, String filename) throws ScriptException {
 
     String requestedFullPath = from.getPath() + filename;
     Module found = cache.get(requestedFullPath);
@@ -139,8 +138,7 @@ public class Module extends SimpleBindings implements RequireFunction {
     return found;
   }
 
-  private Module loadModuleAsFile(Folder parent, String filename)
-          throws ScriptException {
+  private Module loadModuleAsFile(Folder parent, String filename) throws ScriptException {
 
     String[] filenamesToAttempt = getFilenamesToAttempt(filename);
     for (String tentativeFilename : filenamesToAttempt) {
@@ -253,7 +251,10 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
     // to eval to override global context, but it caused problems Object.create.
-    ScriptObjectMirror function = (ScriptObjectMirror) engine.eval("(function (exports, require, module, __filename, __dirname) {" + code + "})");
+    ScriptObjectMirror function =
+        (ScriptObjectMirror)
+            engine.eval(
+                "(function (exports, require, module, __filename, __dirname) {" + code + "})");
     function.call(created, created.exports, created, created.module, filename, dirname);
 
     // Scripts are free to replace the global exports symbol with their own, so we

@@ -79,7 +79,8 @@ public class ModuleTest {
   @Test
   public void itCanLoadModulesFromSubSubFolders() throws Throwable {
     assertEquals(
-        "sub1sub1file1", ((Bindings) require.require("./sub1/sub1/sub1sub1file1.js")).get("sub1sub1file1"));
+        "sub1sub1file1",
+        ((Bindings) require.require("./sub1/sub1/sub1sub1file1.js")).get("sub1sub1file1"));
   }
 
   @Test
@@ -162,7 +163,8 @@ public class ModuleTest {
   public void itUsesNodeModulesFromSubFolderForSubRequiresFromModuleInSubFolder() throws Throwable {
     when(sub1.getFile("sub1file1.js"))
         .thenReturn("exports.sub1nmfile1 = require('sub1nmfile1').sub1nmfile1;");
-    assertEquals("sub1nmfile1", ((Bindings) require.require("./sub1/sub1file1")).get("sub1nmfile1"));
+    assertEquals(
+        "sub1nmfile1", ((Bindings) require.require("./sub1/sub1file1")).get("sub1nmfile1"));
   }
 
   @Test
@@ -178,13 +180,15 @@ public class ModuleTest {
 
   @Test
   public void itCanUseDotAndDoubleDotsToGoBackAndForward() throws Throwable {
-    assertEquals("file1", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("file1"));
+    assertEquals(
+        "file1", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("file1"));
   }
 
   @Test
   public void thePathOfModulesContainsNoDots() throws Throwable {
     when(root.getFile("file1.js")).thenReturn("exports.path = module.filename");
-    assertEquals("/file1.js", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("path"));
+    assertEquals(
+        "/file1.js", ((Bindings) require.require("./sub1/.././sub1/../file1.js")).get("path"));
   }
 
   @Test
@@ -420,8 +424,12 @@ public class ModuleTest {
   // This one failed on more recent ones too
   @Test
   public void anotherCheckForIssueNumber3() throws Throwable {
-    when(root.getFile("file1.js")).thenReturn("var a = require('./file2'); function b() {}; b.prototype = Object.create(a.prototype, {});");
-    when(root.getFile("file2.js")).thenReturn("module.exports = a; function a() {}; a.prototype = Object.create(Object.prototype, {})");
+    when(root.getFile("file1.js"))
+        .thenReturn(
+            "var a = require('./file2'); function b() {}; b.prototype = Object.create(a.prototype, {});");
+    when(root.getFile("file2.js"))
+        .thenReturn(
+            "module.exports = a; function a() {}; a.prototype = Object.create(Object.prototype, {})");
     require = Require.enable(engine, root);
     engine.eval("require('./file1');");
   }
