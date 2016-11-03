@@ -18,7 +18,7 @@ Add this dependency to your `pom.xml` to reference the library:
 <dependency>
   <groupId>com.coveo</groupId>
   <artifactId>nashorn-commonjs-modules</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.4</version>
 </dependency>
 ```
 
