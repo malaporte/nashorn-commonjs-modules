@@ -30,6 +30,7 @@ public class ModuleTest {
   @Mock Folder sub1;
   @Mock Folder sub1nm;
   @Mock Folder sub1sub1;
+  @Mock Folder nmsub1;
 
   NashornScriptEngine engine;
   Module require;
@@ -44,6 +45,9 @@ public class ModuleTest {
     when(rootnm.getPath()).thenReturn("/node_modules/");
     when(rootnm.getParent()).thenReturn(root);
     when(rootnm.getFile("nmfile1.js")).thenReturn("exports.nmfile1 = 'nmfile1';");
+    when(rootnm.getFolder("nmsub1")).thenReturn(nmsub1);
+    when(nmsub1.getFile("nmsub1file1.js")).thenReturn("exports.nmsub1file1 = 'nmsub1file1';");
+    when(nmsub1.getParent()).thenReturn(rootnm);
     when(sub1.getPath()).thenReturn("/sub1/");
     when(sub1.getParent()).thenReturn(root);
     when(sub1.getFolder("sub1")).thenReturn(sub1sub1);
@@ -77,6 +81,11 @@ public class ModuleTest {
   }
 
   @Test
+  public void itCanLoadModulesFromSubFoldersInNodeModules() throws Throwable {
+    assertEquals("nmsub1file1", ((Bindings) require.require("nmsub1/nmsub1file1.js")).get("nmsub1file1"));
+  }
+
+  @Test
   public void itCanLoadModulesFromSubSubFolders() throws Throwable {
     assertEquals(
         "sub1sub1file1",
@@ -87,6 +96,17 @@ public class ModuleTest {
   public void itCanLoadModulesFromParentFolders() throws Throwable {
     when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
     assertEquals("file1", ((Bindings) require.require("./sub1/sub1file1.js")).get("sub1file1"));
+  }
+
+  @Test
+  public void itCanGoUpAndDownInFolders() throws Throwable {
+    when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
+    assertEquals("file1", ((Bindings) require.require("./sub1/../sub1/sub1file1.js")).get("sub1file1"));
+  }
+
+  @Test
+  public void itCanGoUpAndDownInNodeModulesFolders() throws Throwable {
+    assertEquals("nmsub1file1", ((Bindings) require.require("nmsub1/../nmsub1/nmsub1file1.js")).get("nmsub1file1"));
   }
 
   @Test
@@ -218,7 +238,9 @@ public class ModuleTest {
 
   @Test(expected = NashornException.class)
   public void itThrowsAnExceptionIfTryingToGoAboveTheTopLevelFolder() throws Throwable {
-    require.require("../file1.js");
+    // We need two ".." because otherwise the resolving attempts to load from "node_modules" and
+    // ".." validly points to the root folder there.
+    require.require("../../file1.js");
   }
 
   @Test
@@ -446,5 +468,15 @@ public class ModuleTest {
   public void itSupportOverwritingExportsWithAnInteger() throws Throwable {
     when(root.getFile("file1.js")).thenReturn("module.exports = 123;");
     assertEquals(123, engine.eval("require('./file1.js')"));
+  }
+
+  // Checks for https://github.com/coveo/nashorn-commonjs-modules/issues/11
+
+  @Test
+  public void itCanLoadInvariantFromFbjs() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test3");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('fbjs/lib/invariant')");
   }
 }

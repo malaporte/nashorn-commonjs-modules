@@ -65,42 +65,40 @@ public class Module extends SimpleBindings implements RequireFunction {
       throwModuleNotFoundException(module);
     }
 
-    Folder resolvedFolder = resolveFolder(folder, Arrays.copyOfRange(parts, 0, parts.length - 1));
-    if (resolvedFolder == null) {
-      throwModuleNotFoundException(module);
-    }
+    String[] folderParts = Arrays.copyOfRange(parts, 0, parts.length - 1);
 
     String filename = parts[parts.length - 1];
 
     Module found = null;
 
-    // First we try to resolve the module from the resolved folder, ignoring node_modules
+    // First we try to resolve the module from the current folder, ignoring node_modules
     if (isPrefixedModuleName(module)) {
-      found = attemptToLoadFromThisFolder(resolvedFolder, filename);
+      found = attemptToLoadFromThisFolder(folder, folderParts, filename);
     }
 
-    // Then, if not successful, we'll look at node_modules in the resolved folder and then
+    // Then, if not successful, we'll look at node_modules in the current folder and then
     // in all parent folders until we reach the top.
     if (found == null) {
-      found = searchForModuleInNodeModules(resolvedFolder, filename);
+      found = searchForModuleInNodeModules(folder, folderParts, filename);
     }
 
     if (found == null) {
       throwModuleNotFoundException(module);
     }
 
+    assert found != null;
     children.add(found.module);
 
     return found.exports;
   }
 
-  private Module searchForModuleInNodeModules(Folder from, String filename) throws ScriptException {
+  private Module searchForModuleInNodeModules(Folder from, String[] folderParts, String filename) throws ScriptException {
     Folder current = from;
     while (current != null) {
       Folder nodeModules = current.getFolder("node_modules");
 
       if (nodeModules != null) {
-        Module found = attemptToLoadFromThisFolder(nodeModules, filename);
+        Module found = attemptToLoadFromThisFolder(nodeModules, folderParts, filename);
         if (found != null) {
           return found;
         }
@@ -112,20 +110,25 @@ public class Module extends SimpleBindings implements RequireFunction {
     return null;
   }
 
-  private Module attemptToLoadFromThisFolder(Folder from, String filename) throws ScriptException {
+  private Module attemptToLoadFromThisFolder(Folder from, String[] folders, String filename) throws ScriptException {
 
-    String requestedFullPath = from.getPath() + filename;
+    Folder resolvedFolder = resolveFolder(from, folders);
+    if (resolvedFolder == null) {
+      return null;
+    }
+
+    String requestedFullPath = resolvedFolder.getPath() + filename;
     Module found = cache.get(requestedFullPath);
     if (found != null) {
       return found;
     }
 
     // First we try to load as a file, trying out various variations on the path
-    found = loadModuleAsFile(from, filename);
+    found = loadModuleAsFile(resolvedFolder, filename);
 
     // Then we try to load as a directory
     if (found == null) {
-      found = loadModuleAsFolder(from, filename);
+      found = loadModuleAsFolder(resolvedFolder, filename);
     }
 
     if (found != null) {
