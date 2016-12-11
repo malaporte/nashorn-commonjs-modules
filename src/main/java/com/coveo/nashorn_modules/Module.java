@@ -92,7 +92,8 @@ public class Module extends SimpleBindings implements RequireFunction {
     return found.exports;
   }
 
-  private Module searchForModuleInNodeModules(Folder from, String[] folderParts, String filename) throws ScriptException {
+  private Module searchForModuleInNodeModules(Folder from, String[] folderParts, String filename)
+      throws ScriptException {
     Folder current = from;
     while (current != null) {
       Folder nodeModules = current.getFolder("node_modules");
@@ -110,7 +111,8 @@ public class Module extends SimpleBindings implements RequireFunction {
     return null;
   }
 
-  private Module attemptToLoadFromThisFolder(Folder from, String[] folders, String filename) throws ScriptException {
+  private Module attemptToLoadFromThisFolder(Folder from, String[] folders, String filename)
+      throws ScriptException {
 
     Folder resolvedFolder = resolveFolder(from, folders);
     if (resolvedFolder == null) {

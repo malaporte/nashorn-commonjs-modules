@@ -82,7 +82,8 @@ public class ModuleTest {
 
   @Test
   public void itCanLoadModulesFromSubFoldersInNodeModules() throws Throwable {
-    assertEquals("nmsub1file1", ((Bindings) require.require("nmsub1/nmsub1file1.js")).get("nmsub1file1"));
+    assertEquals(
+        "nmsub1file1", ((Bindings) require.require("nmsub1/nmsub1file1.js")).get("nmsub1file1"));
   }
 
   @Test
@@ -101,12 +102,15 @@ public class ModuleTest {
   @Test
   public void itCanGoUpAndDownInFolders() throws Throwable {
     when(sub1.getFile("sub1file1.js")).thenReturn("exports.sub1file1 = require('../file1').file1;");
-    assertEquals("file1", ((Bindings) require.require("./sub1/../sub1/sub1file1.js")).get("sub1file1"));
+    assertEquals(
+        "file1", ((Bindings) require.require("./sub1/../sub1/sub1file1.js")).get("sub1file1"));
   }
 
   @Test
   public void itCanGoUpAndDownInNodeModulesFolders() throws Throwable {
-    assertEquals("nmsub1file1", ((Bindings) require.require("nmsub1/../nmsub1/nmsub1file1.js")).get("nmsub1file1"));
+    assertEquals(
+        "nmsub1file1",
+        ((Bindings) require.require("nmsub1/../nmsub1/nmsub1file1.js")).get("nmsub1file1"));
   }
 
   @Test
