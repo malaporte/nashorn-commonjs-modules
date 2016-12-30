@@ -50,7 +50,7 @@ public class Module extends SimpleBindings implements RequireFunction {
     module.put("parent", parent != null ? parent.module : null);
   }
 
-  void setLoaded() {
+  public void setLoaded() {
     module.put("loaded", true);
   }
 
@@ -227,7 +227,11 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     Module created;
     String lowercaseFullPath = fullPath.toLowerCase();
-    if (lowercaseFullPath.endsWith(".js")) {
+    String fileEnding = fullPath.substring(fullPath.lastIndexOf('.'), fullPath.length());
+    FileHandler fileHandler = Require.getFileHandler(fileEnding);
+    if (fileHandler != null) {
+      created = fileHandler.compile(parent, fullPath, code, this);
+    } else if (lowercaseFullPath.endsWith(".js")) {
       created = compileJavaScriptModule(parent, fullPath, code);
     } else if (lowercaseFullPath.endsWith(".json")) {
       created = compileJsonModule(parent, fullPath, code);
@@ -324,5 +328,29 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private static String[] getFilenamesToAttempt(String filename) {
     return new String[] {filename, filename + ".js", filename + ".json"};
+  }
+
+  public NashornScriptEngine getEngine() {
+    return engine;
+  }
+
+  public ModuleCache getCache() {
+    return cache;
+  }
+
+  public Module getMainModule() {
+    return main;
+  }
+
+  public Object getExports() {
+    return exports;
+  }
+
+  public Bindings getModule() {
+    return module;
+  }
+
+  public void setExports(Object exports) {
+    this.exports = exports;
   }
 }
