@@ -1,10 +1,10 @@
 package com.coveo.nashorn_modules;
 
+import jdk.nashorn.api.scripting.NashornScriptEngine;
+
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptException;
-
-import jdk.nashorn.api.scripting.NashornScriptEngine;
 
 public class Require {
   public static Module enable(NashornScriptEngine engine, Folder folder) throws ScriptException {

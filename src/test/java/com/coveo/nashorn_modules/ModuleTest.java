@@ -1,25 +1,20 @@
 package com.coveo.nashorn_modules;
 
+import jdk.nashorn.api.scripting.NashornException;
+import jdk.nashorn.api.scripting.NashornScriptEngine;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import javax.script.Bindings;
+import javax.script.ScriptEngineManager;
 import java.io.File;
 import java.util.ArrayList;
 
-import javax.script.Bindings;
-import javax.script.ScriptEngineManager;
-
-import jdk.nashorn.api.scripting.NashornException;
-import jdk.nashorn.api.scripting.NashornScriptEngine;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -482,5 +477,13 @@ public class ModuleTest {
     FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
     require = Require.enable(engine, root);
     engine.eval("require('fbjs/lib/invariant')");
+  }
+
+  @Test
+  public void itCanShortCircuitCircularRequireReferences() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test4/cycles");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('./main.js')");
   }
 }
