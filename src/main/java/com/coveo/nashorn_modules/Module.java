@@ -1,16 +1,17 @@
 package com.coveo.nashorn_modules;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import jdk.nashorn.api.scripting.NashornScriptEngine;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ECMAException;
 
 import javax.script.Bindings;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
-
-import jdk.nashorn.api.scripting.NashornScriptEngine;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import jdk.nashorn.internal.runtime.ECMAException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Module extends SimpleBindings implements RequireFunction {
   private NashornScriptEngine engine;
@@ -21,6 +22,7 @@ public class Module extends SimpleBindings implements RequireFunction {
   private Bindings module;
   private List<Bindings> children = new ArrayList<>();
   private Object exports;
+  private static ThreadLocal<Map<String, Bindings>> refCache = new ThreadLocal<>();
 
   public Module(
       NashornScriptEngine engine,
@@ -71,35 +73,61 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     Module found = null;
 
-    // First we try to resolve the module from the current folder, ignoring node_modules
-    if (isPrefixedModuleName(module)) {
-      found = attemptToLoadFromThisFolder(folder, folderParts, filename);
+    Folder resolvedFolder = resolveFolder(folder, folderParts);
+
+    //Let's make sure each thread gets its own refCache
+    if (refCache.get() == null) {
+      refCache.set(new HashMap<>());
     }
 
-    // Then, if not successful, we'll look at node_modules in the current folder and then
-    // in all parent folders until we reach the top.
-    if (found == null) {
-      found = searchForModuleInNodeModules(folder, folderParts, filename);
+    if (resolvedFolder != null) {
+      String requestedFullPath = resolvedFolder.getPath() + filename;
+      Bindings cachedExports = refCache.get().get(requestedFullPath);
+      if (cachedExports != null) {
+        return cachedExports;
+      } else {
+        //We must store a reference to currently loading module to avoid circular requires
+        refCache.get().put(requestedFullPath, engine.createBindings());
+      }
     }
 
-    if (found == null) {
-      throwModuleNotFoundException(module);
+    try {
+
+      // If not cached, we try to resolve the module from the current folder, ignoring node_modules
+      if (isPrefixedModuleName(module)) {
+        found = attemptToLoadFromThisFolder(resolvedFolder, filename);
+      }
+
+      // Then, if not successful, we'll look at node_modules in the current folder and then
+      // in all parent folders until we reach the top.
+      if (found == null) {
+        found = searchForModuleInNodeModules(folder, folderParts, filename);
+      }
+
+      if (found == null) {
+        throwModuleNotFoundException(module);
+      }
+
+      assert found != null;
+      children.add(found.module);
+
+      return found.exports;
+
+    } finally {
+      //Finally, remove successful resolves from the refCache
+      refCache.remove();
     }
-
-    assert found != null;
-    children.add(found.module);
-
-    return found.exports;
   }
 
-  private Module searchForModuleInNodeModules(Folder from, String[] folderParts, String filename)
-      throws ScriptException {
-    Folder current = from;
+  private Module searchForModuleInNodeModules(
+      Folder resolvedFolder, String[] folderParts, String filename) throws ScriptException {
+    Folder current = resolvedFolder;
     while (current != null) {
       Folder nodeModules = current.getFolder("node_modules");
 
       if (nodeModules != null) {
-        Module found = attemptToLoadFromThisFolder(nodeModules, folderParts, filename);
+        Module found =
+            attemptToLoadFromThisFolder(resolveFolder(nodeModules, folderParts), filename);
         if (found != null) {
           return found;
         }
@@ -111,15 +139,15 @@ public class Module extends SimpleBindings implements RequireFunction {
     return null;
   }
 
-  private Module attemptToLoadFromThisFolder(Folder from, String[] folders, String filename)
+  private Module attemptToLoadFromThisFolder(Folder resolvedFolder, String filename)
       throws ScriptException {
 
-    Folder resolvedFolder = resolveFolder(from, folders);
     if (resolvedFolder == null) {
       return null;
     }
 
     String requestedFullPath = resolvedFolder.getPath() + filename;
+
     Module found = cache.get(requestedFullPath);
     if (found != null) {
       return found;
@@ -247,7 +275,13 @@ public class Module extends SimpleBindings implements RequireFunction {
       throws ScriptException {
 
     Bindings module = engine.createBindings();
-    Bindings exports = engine.createBindings();
+
+    //If we have cached bindings, use them to rebind exports instead of creating new ones
+    Bindings exports = refCache.get().get(fullPath);
+    if (exports == null) {
+      exports = engine.createBindings();
+    }
+
     Module created = new Module(engine, parent, cache, fullPath, module, exports, this, this.main);
 
     String[] split = Paths.splitPath(fullPath);
