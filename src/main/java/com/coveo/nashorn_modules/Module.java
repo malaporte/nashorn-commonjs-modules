@@ -1,17 +1,18 @@
 package com.coveo.nashorn_modules;
 
-import jdk.nashorn.api.scripting.NashornScriptEngine;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import jdk.nashorn.internal.runtime.ECMAException;
-
-import javax.script.Bindings;
-import javax.script.ScriptException;
-import javax.script.SimpleBindings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.script.Bindings;
+import javax.script.ScriptException;
+import javax.script.SimpleBindings;
+
+import jdk.nashorn.api.scripting.NashornScriptEngine;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ECMAException;
 
 public class Module extends SimpleBindings implements RequireFunction {
   private NashornScriptEngine engine;
@@ -75,7 +76,7 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     Folder resolvedFolder = resolveFolder(folder, folderParts);
 
-    //Let's make sure each thread gets its own refCache
+    // Let's make sure each thread gets its own refCache
     if (refCache.get() == null) {
       refCache.set(new HashMap<>());
     }
@@ -86,13 +87,12 @@ public class Module extends SimpleBindings implements RequireFunction {
       if (cachedExports != null) {
         return cachedExports;
       } else {
-        //We must store a reference to currently loading module to avoid circular requires
+        // We must store a reference to currently loading module to avoid circular requires
         refCache.get().put(requestedFullPath, engine.createBindings());
       }
     }
 
     try {
-
       // If not cached, we try to resolve the module from the current folder, ignoring node_modules
       if (isPrefixedModuleName(module)) {
         found = attemptToLoadFromThisFolder(resolvedFolder, filename);
@@ -114,7 +114,7 @@ public class Module extends SimpleBindings implements RequireFunction {
       return found.exports;
 
     } finally {
-      //Finally, remove successful resolves from the refCache
+      // Finally, remove successful resolves from the refCache
       refCache.remove();
     }
   }
