@@ -290,15 +290,25 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
     // to eval to override global context, but it caused problems Object.create.
+
     ScriptObjectMirror function =
         (ScriptObjectMirror)
             engine.eval(
-                "(function (exports, require, module, __filename, __dirname) {" + code + "})");
-    function.call(created, created.exports, created, created.module, filename, dirname);
+                "(function (require, module, __filename, __dirname) {var exports={};"
+                    + code
+                    + "\nreturn exports;})");
+
+    ScriptObjectMirror exported =
+        (ScriptObjectMirror) function.call(created, created, created.module, filename, dirname);
 
     // Scripts are free to replace the global exports symbol with their own, so we
     // reload it from the module object after compiling the code.
     created.exports = created.module.get("exports");
+
+    //Copy all exported members
+    if (created.exports instanceof Map) {
+      ((Map) created.exports).putAll(exported);
+    }
 
     created.setLoaded();
     return created;
