@@ -13,6 +13,7 @@ import javax.script.Bindings;
 import javax.script.ScriptEngineManager;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -279,7 +280,7 @@ public class ModuleTest {
     Bindings exports = (Bindings) engine.eval("require('./file1')._exports");
     Bindings main = (Bindings) engine.eval("require('./file1')._main");
 
-    assertEquals(exports, module.get("exports"));
+    assertEquals(exports.entrySet(), ((Map) module.get("exports")).entrySet());
     assertEquals(new ArrayList(), module.get("children"));
     assertEquals("/file1.js", module.get("filename"));
     assertEquals("/file1.js", module.get("id"));
@@ -303,7 +304,7 @@ public class ModuleTest {
     Bindings exports = (Bindings) engine.eval("require('./sub1/sub1file1')._exports");
     Bindings main = (Bindings) engine.eval("require('./sub1/sub1file1')._main");
 
-    assertEquals(exports, module.get("exports"));
+    assertEquals(exports.entrySet(), ((Map) module.get("exports")).entrySet());
     assertEquals(new ArrayList(), module.get("children"));
     assertEquals("/sub1/sub1file1.js", module.get("filename"));
     assertEquals("/sub1/sub1file1.js", module.get("id"));
@@ -327,7 +328,7 @@ public class ModuleTest {
     Bindings exports = (Bindings) engine.eval("require('./sub1/sub1/sub1sub1file1')._exports");
     Bindings main = (Bindings) engine.eval("require('./sub1/sub1/sub1sub1file1')._main");
 
-    assertEquals(exports, module.get("exports"));
+    assertEquals(exports.entrySet(), ((Map) module.get("exports")).entrySet());
     assertEquals(new ArrayList(), module.get("children"));
     assertEquals("/sub1/sub1/sub1sub1file1.js", module.get("filename"));
     assertEquals("/sub1/sub1/sub1sub1file1.js", module.get("id"));
@@ -485,5 +486,13 @@ public class ModuleTest {
     FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
     require = Require.enable(engine, root);
     engine.eval("require('./main.js')");
+  }
+
+  @Test
+  public void itCanDefinePropertiesOnExportsObject() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test5");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('./exports.js')");
   }
 }
