@@ -10,7 +10,10 @@ import java.io.File;
 import java.util.ArrayList;
 
 import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
@@ -19,7 +22,9 @@ import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,6 +73,32 @@ public class ModuleTest {
   @Test
   public void itCanLoadSimpleModules() throws Throwable {
     assertEquals("file1", ((Bindings) require.require("./file1.js")).get("file1"));
+  }
+
+  @Test
+  public void itCanEnableRequireInDifferentBindingsOnTheSameEngine() throws Throwable {
+    NashornScriptEngine engine =
+        (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
+    Bindings bindings1 = new SimpleBindings();
+    Bindings bindings2 = new SimpleBindings();
+
+    Require.enable(engine, root, bindings1);
+
+    assertNull(engine.getBindings(ScriptContext.ENGINE_SCOPE).get("require"));
+    assertNotNull(bindings1.get("require"));
+    assertNull(bindings2.get("require"));
+    assertEquals("file1", ((Bindings) engine.eval("require('./file1')", bindings1)).get("file1"));
+
+    try {
+      engine.eval("require('./file1')", bindings2);
+      fail();
+    } catch (ScriptException ignored) {
+    }
+
+    Require.enable(engine, root, bindings2);
+    assertNull(engine.getBindings(ScriptContext.ENGINE_SCOPE).get("require"));
+    assertNotNull(bindings2.get("require"));
+    assertEquals("file1", ((Bindings) engine.eval("require('./file1')", bindings2)).get("file1"));
   }
 
   @Test
