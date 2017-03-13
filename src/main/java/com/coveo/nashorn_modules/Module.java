@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
@@ -16,6 +17,10 @@ import jdk.nashorn.internal.runtime.ECMAException;
 
 public class Module extends SimpleBindings implements RequireFunction {
   private NashornScriptEngine engine;
+  private ScriptObjectMirror objectConstructor;
+  private ScriptObjectMirror jsonConstructor;
+  private ScriptObjectMirror errorConstructor;
+
   private Folder folder;
   private ModuleCache cache;
 
@@ -37,6 +42,17 @@ public class Module extends SimpleBindings implements RequireFunction {
       throws ScriptException {
 
     this.engine = engine;
+
+    if (parent != null) {
+      this.objectConstructor = parent.objectConstructor;
+      this.jsonConstructor = parent.jsonConstructor;
+      this.errorConstructor = parent.errorConstructor;
+    } else {
+      this.objectConstructor = (ScriptObjectMirror) engine.eval("Object");
+      this.jsonConstructor = (ScriptObjectMirror) engine.eval("JSON") ;
+      this.errorConstructor = (ScriptObjectMirror) engine.eval("Error");
+    }
+
     this.folder = folder;
     this.cache = cache;
     this.main = main != null ? main : this;
@@ -88,7 +104,7 @@ public class Module extends SimpleBindings implements RequireFunction {
         return cachedExports;
       } else {
         // We must store a reference to currently loading module to avoid circular requires
-        refCache.get().put(requestedFullPath, engine.createBindings());
+        refCache.get().put(requestedFullPath, createSafeBindings());
       }
     }
 
@@ -274,12 +290,14 @@ public class Module extends SimpleBindings implements RequireFunction {
   private Module compileJavaScriptModule(Folder parent, String fullPath, String code)
       throws ScriptException {
 
-    Bindings module = engine.createBindings();
+    Bindings engineScope = engine.getBindings(ScriptContext.ENGINE_SCOPE);
+    Bindings module = createSafeBindings();
+    module.putAll(engineScope);
 
-    //If we have cached bindings, use them to rebind exports instead of creating new ones
+    // If we have cached bindings, use them to rebind exports instead of creating new ones
     Bindings exports = refCache.get().get(fullPath);
     if (exports == null) {
-      exports = engine.createBindings();
+      exports = createSafeBindings();
     }
 
     Module created = new Module(engine, parent, cache, fullPath, module, exports, this, this.main);
@@ -306,8 +324,8 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private Module compileJsonModule(Folder parent, String fullPath, String code)
       throws ScriptException {
-    Bindings module = engine.createBindings();
-    Bindings exports = engine.createBindings();
+    Bindings module = createSafeBindings();
+    Bindings exports = createSafeBindings();
     Module created = new Module(engine, parent, cache, fullPath, module, exports, this, this.main);
     created.exports = parseJson(code);
     created.setLoaded();
@@ -316,13 +334,11 @@ public class Module extends SimpleBindings implements RequireFunction {
 
   private ScriptObjectMirror parseJson(String json) throws ScriptException {
     // Pretty lame way to parse JSON but hey...
-    ScriptObjectMirror jsJson = (ScriptObjectMirror) engine.eval("JSON");
-    return (ScriptObjectMirror) jsJson.callMember("parse", json);
+    return (ScriptObjectMirror) jsonConstructor.callMember("parse", json);
   }
 
   private void throwModuleNotFoundException(String module) throws ScriptException {
-    ScriptObjectMirror ctor = (ScriptObjectMirror) engine.eval("Error");
-    Bindings error = (Bindings) ctor.newObject("Module not found: " + module);
+    Bindings error = (Bindings) errorConstructor.newObject("Module not found: " + module);
     error.put("code", "MODULE_NOT_FOUND");
     throw new ECMAException(error, null);
   }
@@ -350,6 +366,13 @@ public class Module extends SimpleBindings implements RequireFunction {
     }
 
     return current;
+  }
+
+  private Bindings createSafeBindings() throws ScriptException {
+    // As explained in https://github.com/coveo/nashorn-commonjs-modules/pull/16/files a plain
+    // SimpleBindings has quite a few limitations in Nashorn compared to a ScriptObject, so
+    // whenever we need an instance of those (for `exports` etc.) we create a real JS object.
+    return (ScriptObjectMirror) objectConstructor.newObject();
   }
 
   private static boolean isPrefixedModuleName(String module) {
