@@ -498,7 +498,8 @@ public class ModuleTest {
 
   @Test
   public void itCanDefinePropertiesOnExportsObject() throws Throwable {
-    when(root.getFile("file1.js")).thenReturn("Object.defineProperty(exports, '__esModule', { value: true });");
+    when(root.getFile("file1.js"))
+        .thenReturn("Object.defineProperty(exports, '__esModule', { value: true });");
     engine.eval("require('./file1.js')");
   }
 }

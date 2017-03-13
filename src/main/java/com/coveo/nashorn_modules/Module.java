@@ -49,7 +49,7 @@ public class Module extends SimpleBindings implements RequireFunction {
       this.errorConstructor = parent.errorConstructor;
     } else {
       this.objectConstructor = (ScriptObjectMirror) engine.eval("Object");
-      this.jsonConstructor = (ScriptObjectMirror) engine.eval("JSON") ;
+      this.jsonConstructor = (ScriptObjectMirror) engine.eval("JSON");
       this.errorConstructor = (ScriptObjectMirror) engine.eval("Error");
     }
 
