@@ -97,8 +97,9 @@ public class Module extends SimpleBindings implements RequireFunction {
       refCache.set(new HashMap<>());
     }
 
+    String requestedFullPath = null;
     if (resolvedFolder != null) {
-      String requestedFullPath = resolvedFolder.getPath() + filename;
+      requestedFullPath = resolvedFolder.getPath() + filename;
       Bindings cachedExports = refCache.get().get(requestedFullPath);
       if (cachedExports != null) {
         return cachedExports;
@@ -130,8 +131,10 @@ public class Module extends SimpleBindings implements RequireFunction {
       return found.exports;
 
     } finally {
-      // Finally, remove successful resolves from the refCache
-      refCache.remove();
+      // Finally, we remove the successful resolved module from the refCache
+      if(requestedFullPath != null){
+        refCache.get().remove(requestedFullPath);
+      }
     }
   }
 
