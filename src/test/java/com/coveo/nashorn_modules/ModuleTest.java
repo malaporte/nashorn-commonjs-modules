@@ -19,12 +19,7 @@ import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -532,5 +527,17 @@ public class ModuleTest {
     when(root.getFile("file1.js"))
         .thenReturn("Object.defineProperty(exports, '__esModule', { value: true });");
     engine.eval("require('./file1.js')");
+  }
+
+  @Test
+  public void itIncludesFilenameInException() throws Throwable {
+    when(root.getFile("file1.js"))
+        .thenReturn("\n\nexports.foo = function() { throw \"bad thing\";};");
+    try {
+      engine.eval("require('./file1').foo();");
+      fail("should throw exception");
+    } catch (ScriptException e) {
+      assertEquals("bad thing in /file1.js at line number 3", e.getMessage().substring(0, 39));
+    }
   }
 }
