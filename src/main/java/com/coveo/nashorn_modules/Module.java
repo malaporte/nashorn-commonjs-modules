@@ -307,18 +307,22 @@ public class Module extends SimpleBindings implements RequireFunction {
     String filename = split[split.length - 1];
     String dirname = fullPath.substring(0, Math.max(fullPath.length() - filename.length() - 1, 0));
 
+    String previousFilename = (String) engine.get(ScriptEngine.FILENAME);
     // set filename before eval so file names/lines in
     // exceptions are accurate
     engine.put(ScriptEngine.FILENAME, fullPath);
-    
-    
-    // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
-    // to eval to override global context, but it caused problems Object.create.
-    ScriptObjectMirror function =
-        (ScriptObjectMirror)
-            engine.eval(
-                "(function (exports, require, module, __filename, __dirname) {" + code + "})");
-    function.call(created, created.exports, created, created.module, filename, dirname);
+
+    try {
+      // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
+      // to eval to override global context, but it caused problems Object.create.
+      ScriptObjectMirror function =
+          (ScriptObjectMirror)
+              engine.eval(
+                  "(function (exports, require, module, __filename, __dirname) {" + code + "})");
+      function.call(created, created.exports, created, created.module, filename, dirname);
+    } finally {
+      engine.put(ScriptEngine.FILENAME, previousFilename);
+    }
 
     // Scripts are free to replace the global exports symbol with their own, so we
     // reload it from the module object after compiling the code.
