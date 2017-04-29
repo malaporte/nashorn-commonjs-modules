@@ -10,8 +10,10 @@ import java.io.File;
 import java.util.ArrayList;
 
 import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
@@ -66,6 +68,32 @@ public class ModuleTest {
   @Test
   public void itCanLoadSimpleModules() throws Throwable {
     assertEquals("file1", ((Bindings) require.require("./file1.js")).get("file1"));
+  }
+
+  @Test
+  public void itCanEnableRequireInDifferentBindingsOnTheSameEngine() throws Throwable {
+    NashornScriptEngine engine =
+        (NashornScriptEngine) new ScriptEngineManager().getEngineByName("nashorn");
+    Bindings bindings1 = new SimpleBindings();
+    Bindings bindings2 = new SimpleBindings();
+
+    Require.enable(engine, root, bindings1);
+
+    assertNull(engine.getBindings(ScriptContext.ENGINE_SCOPE).get("require"));
+    assertNotNull(bindings1.get("require"));
+    assertNull(bindings2.get("require"));
+    assertEquals("file1", ((Bindings) engine.eval("require('./file1')", bindings1)).get("file1"));
+
+    try {
+      engine.eval("require('./file1')", bindings2);
+      fail();
+    } catch (ScriptException ignored) {
+    }
+
+    Require.enable(engine, root, bindings2);
+    assertNull(engine.getBindings(ScriptContext.ENGINE_SCOPE).get("require"));
+    assertNotNull(bindings2.get("require"));
+    assertEquals("file1", ((Bindings) engine.eval("require('./file1')", bindings2)).get("file1"));
   }
 
   @Test
@@ -500,16 +528,16 @@ public class ModuleTest {
         .thenReturn("Object.defineProperty(exports, '__esModule', { value: true });");
     engine.eval("require('./file1.js')");
   }
-  
+
   @Test
-	public void itIncludesFilenameInException() throws Throwable {
-    when(root.getFile("file1.js")).thenReturn("\n\nexports.foo = function() { throw \"bad thing\";};");
+  public void itIncludesFilenameInException() throws Throwable {
+    when(root.getFile("file1.js"))
+        .thenReturn("\n\nexports.foo = function() { throw \"bad thing\";};");
     try {
-    	engine.eval("require('./file1').foo();");
-    	fail("should throw exception");
+      engine.eval("require('./file1').foo();");
+      fail("should throw exception");
     } catch (ScriptException e) {
-    	assertEquals("bad thing in /file1.js at line number 3", e.getMessage().substring(0, 39));
+      assertEquals("bad thing in /file1.js at line number 3", e.getMessage().substring(0, 39));
     }
-  	
-	}
+  }
 }
