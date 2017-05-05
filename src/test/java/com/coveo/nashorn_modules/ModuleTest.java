@@ -520,6 +520,14 @@ public class ModuleTest {
     engine.eval("require('./main.js')");
   }
 
+  @Test
+  public void itCanShortCircuitDeepCircularRequireReferences() throws Throwable {
+    File file = new File("src/test/resources/com/coveo/nashorn_modules/test4/deep");
+    FilesystemFolder root = FilesystemFolder.create(file, "UTF-8");
+    require = Require.enable(engine, root);
+    engine.eval("require('./main.js')");
+  }
+
   // Checks for https://github.com/coveo/nashorn-commonjs-modules/issues/15
 
   @Test
