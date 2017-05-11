@@ -164,6 +164,19 @@ public class ModuleTest {
 
   @Test
   public void
+      itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToASubDirectory()
+          throws Throwable {
+    Folder dir = mock(Folder.class);
+    Folder lib = mock(Folder.class);
+    when(root.getFolder("dir")).thenReturn(dir);
+    when(dir.getFolder("lib")).thenReturn(lib);
+    when(dir.getFile("package.json")).thenReturn("{\"main\": \"./lib\"}");
+    when(lib.getFile("index.js")).thenReturn("exports.foo = 'foo';");
+    assertEquals("foo", ((Bindings) require.require("./dir")).get("foo"));
+  }
+
+  @Test
+  public void
       itCanLoadModulesSpecifyingOnlyTheFolderWhenPackageJsonHasAMainFilePointingToAFileInSubDirectoryReferencingOtherFilesInThisDirectory()
           throws Throwable {
     Folder dir = mock(Folder.class);

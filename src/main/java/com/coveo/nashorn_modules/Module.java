@@ -133,7 +133,7 @@ public class Module extends SimpleBindings implements RequireFunction {
 
     } finally {
       // Finally, we remove the successful resolved module from the refCache
-      if(requestedFullPath != null){
+      if (requestedFullPath != null) {
         refCache.get().remove(requestedFullPath);
       }
     }
@@ -244,7 +244,16 @@ public class Module extends SimpleBindings implements RequireFunction {
       return null;
     }
 
-    return loadModuleAsFile(folder, filename);
+    Module module = loadModuleAsFile(folder, filename);
+
+    if (module == null) {
+      folder = resolveFolder(parent, parts);
+      if (folder != null) {
+        module = loadModuleThroughIndexJs(folder);
+      }
+    }
+
+    return module;
   }
 
   private String getMainFileFromPackageJson(String packageJson) throws ScriptException {
