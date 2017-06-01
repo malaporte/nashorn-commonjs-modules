@@ -561,4 +561,12 @@ public class ModuleTest {
       assertEquals("bad thing in /file1.js at line number 3", e.getMessage().substring(0, 39));
     }
   }
+
+  // Checks for https://github.com/coveo/nashorn-commonjs-modules/issues/22
+
+  @Test
+  public void itCanLoadModulesWhoseLastLineIsAComment() throws Throwable {
+    when(root.getFile("file1.js")).thenReturn("exports.foo = \"bar\";\n// foo");
+    assertEquals("bar", engine.eval("require('./file1.js').foo"));
+  }
 }

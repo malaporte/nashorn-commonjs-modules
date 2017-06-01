@@ -327,10 +327,12 @@ public class Module extends SimpleBindings implements RequireFunction {
     try {
       // This mimics how Node wraps module in a function. I used to pass a 2nd parameter
       // to eval to override global context, but it caused problems Object.create.
+      //
+      // The \n at the end is to take care of files ending with a comment
       ScriptObjectMirror function =
           (ScriptObjectMirror)
               engine.eval(
-                  "(function (exports, require, module, __filename, __dirname) {" + code + "})");
+                  "(function (exports, require, module, __filename, __dirname) {" + code + "\n})");
       function.call(created, created.exports, created, created.module, filename, dirname);
     } finally {
       engine.put(ScriptEngine.FILENAME, previousFilename);
