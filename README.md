@@ -6,7 +6,7 @@
 
 This library adds support for CommonJS modules (aka `require`) inside a Nashorn script engine. It is based on the specification for [NodeJS modules](https://nodejs.org/api/modules.html) and it supports loading modules from the `node_modules` folder just as Node does. Of course, it doesn't provide an implementation for Node's APIs, so any module that depends on those won't work.
 
-It is somehow similar to [jvm-npm](https://github.com/nodyn/jvm-npm) which I used before, but it is 100% implemented in Java and supports loading files through other means than the filesystem; you only need to implement a simple interface and you should be good to do. Also, having the implementation in Java allows using it with a JS interpreter on which access to Java packages has been disabled for sandboxing purposes.
+It is somehow similar to [jvm-npm](https://github.com/nodyn/jvm-npm) which I used before, but it is 100% implemented in Java and supports loading files through other means than the filesystem; you only need to implement a simple interface and you should be good to go. Also, having the implementation in Java allows using it with a JS interpreter on which access to Java packages has been disabled for sandboxing purposes.
 
 Out-of-the-box, the library supports loading modules from the filesystem and from Java resources.
 
