@@ -19,8 +19,8 @@ public class FilesystemFolderTest {
 
   @Test
   public void rootFolderHasTheExpectedProperties() {
-    assertTrue(root.getPath().startsWith("/"));
-    assertTrue(root.getPath().endsWith("/src/test/resources/com/coveo/nashorn_modules/test1/"));
+    assertTrue(root.getPath().startsWith(file.getAbsolutePath().replace(file.getPath(), "")));
+    assertTrue(root.getPath().endsWith(file.getPath() + "/"));
     assertNull(root.getParent());
   }
 
