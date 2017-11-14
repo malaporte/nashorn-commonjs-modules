@@ -303,9 +303,7 @@ public class Module extends SimpleBindings implements RequireFunction {
   private Module compileJavaScriptModule(Folder parent, String fullPath, String code)
       throws ScriptException {
 
-    Bindings engineScope = engine.getBindings(ScriptContext.ENGINE_SCOPE);
     Bindings module = createSafeBindings();
-    module.putAll(engineScope);
 
     // If we have cached bindings, use them to rebind exports instead of creating new ones
     Bindings exports = refCache.get().get(fullPath);
