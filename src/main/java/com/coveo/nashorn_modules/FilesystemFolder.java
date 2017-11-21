@@ -39,11 +39,11 @@ public class FilesystemFolder extends AbstractFolder {
       return null;
     }
 
-    return new FilesystemFolder(folder, this, getPath() + name + "/", encoding);
+    return new FilesystemFolder(folder, this, getPath() + name + File.separator, encoding);
   }
 
   public static FilesystemFolder create(File root, String encoding) {
     File absolute = root.getAbsoluteFile();
-    return new FilesystemFolder(absolute, null, absolute.getPath() + "/", encoding);
+    return new FilesystemFolder(absolute, null, absolute.getPath() + File.separator, encoding);
   }
 }
